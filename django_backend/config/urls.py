@@ -8,6 +8,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API Endpoints
+    path('api/v1/auth/', include('apps.accounts.urls')),
     path('api/v1/work-study/', include('apps.work_study.urls')),
     path('api/v1/communication-engine/', include('apps.communication_engine.urls')),
     path('api/v1/study-abroad/', include('apps.study_abroad.urls')),

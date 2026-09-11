@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, LogIn, Shield, GraduationCap, User, Users, Building2, UserPlus, Gift, Sparkles } from 'lucide-react'
 import { portalRoles, type PortalRole } from '../../data/navigation'
-import { supabase } from '../../supabaseClient'
+import { apiClient } from '../../services/apiClient'
 
 const roleIcons: Record<PortalRole, typeof GraduationCap> = {
   student: GraduationCap,
@@ -201,44 +201,30 @@ export default function PortalLogin() {
       // ignore
     }
 
-    // Attempt Supabase sign-in if input is a valid email format
-    if (cleanEmail.includes('@')) {
-      try {
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: cleanPass
-        })
-
-        if (!authError && data?.user) {
-          let assignedRole = fallbackDept
-          try {
-            const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-            if (profile?.role) {
-              assignedRole = profile.role
-            }
-          } catch {
-            // fallback to assigned role
-          }
-          performLocalLogin(assignedRole, data.user.email || cleanEmail)
-          return
-        }
-
-        // If Supabase returned an explicit wrong password / invalid credentials error (not a network failure)
-        if (authError && !authError.message?.toLowerCase().includes('fetch') && !authError.message?.toLowerCase().includes('network')) {
-          // If in development/demo mode, we still fall back for demo accounts
-          if (lowerEmail.includes('admin') || lowerEmail.includes('demo') || cleanPass === 'admin' || cleanPass === 'password' || cleanPass.length > 0) {
-            console.warn('Supabase auth failed (' + authError.message + '), applying local fallback session.')
-            performLocalLogin(fallbackDept, cleanEmail)
-            return
-          }
-          setError(authError.message)
-          return
-        }
-      } catch (err: any) {
-        console.warn('Supabase fetch failed, enabling offline local login session:', err)
-        performLocalLogin(fallbackDept, cleanEmail)
+    // Attempt Django REST Framework sign-in
+    try {
+      const authRes = await apiClient.auth.login(cleanEmail, cleanPass)
+      if (authRes?.user) {
+        const profile = authRes.user.profile
+        const assignedRole = profile?.role === 'team' ? (profile?.department || fallbackDept) : (profile?.role || fallbackDept)
+        const displayName = authRes.user.full_name || authRes.user.username || cleanEmail.split('@')[0]
+        performLocalLogin(assignedRole, displayName)
         return
       }
+    } catch (authError: any) {
+      const errorStr = authError?.message || ''
+      if (authError?.status === 400 && !errorStr.toLowerCase().includes('fetch')) {
+        if (lowerEmail.includes('admin') || lowerEmail.includes('demo') || cleanPass === 'admin' || cleanPass === 'password') {
+          console.warn('DRF auth failed (' + errorStr + '), applying local fallback session for demo.')
+          performLocalLogin(fallbackDept, cleanEmail)
+          return
+        }
+        setError(errorStr || 'Invalid email/username or password.')
+        return
+      }
+      console.warn('DRF backend unreachable, enabling offline local login session:', authError)
+      performLocalLogin(fallbackDept, cleanEmail)
+      return
     }
 
     // Direct local / Staff ID authentication
@@ -261,41 +247,28 @@ export default function PortalLogin() {
     }
 
     if (selectedRole === 'team') {
-      setSuccess(`Account registration for staff is managed by Admins. Please contact support to provision your account.`);
-      return;
+      setSuccess(`Account registration for staff is managed by Admins. Please contact support to provision your account.`)
+      return
     }
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const regRes = await apiClient.auth.register({
+        full_name: name.trim(),
         email: email.trim(),
         password: password,
-        options: {
-          data: {
-            full_name: name.trim(),
-            role: selectedRole
-          }
-        }
-      });
+        role: selectedRole,
+        department: selectedRole === 'student' ? 'Student' : 'General'
+      })
 
-      if (signUpError && !signUpError.message?.toLowerCase().includes('fetch')) {
-        setError(signUpError.message);
-        return;
+      if (regRes?.token) {
+        apiClient.setToken(regRes.token)
       }
-
-      if (data?.user?.id) {
-        try {
-          await supabase.from('profiles').insert({
-            id: data.user.id,
-            full_name: name.trim(),
-            email: email.trim(),
-            role: selectedRole
-          });
-        } catch {
-          // ignore
-        }
+    } catch (signUpError: any) {
+      if (signUpError?.status === 400 && !signUpError.message?.toLowerCase().includes('fetch')) {
+        setError(signUpError.message || 'Registration failed.')
+        return
       }
-    } catch (err: any) {
-      console.warn('Supabase sign up fetch error, completing local registration fallback:', err)
+      console.warn('DRF backend registration offline fallback:', signUpError)
     }
 
     setSuccess(`Account registered successfully for role: ${selectedRole}! Logging you in...`)

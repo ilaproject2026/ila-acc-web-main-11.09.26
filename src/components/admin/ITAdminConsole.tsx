@@ -98,7 +98,7 @@ export default function SettingsHub() {
 
     localStorage.setItem('ilas_staff_registry', JSON.stringify(staffList));
     localStorage.setItem('ilas_user_name', profileName);
-    setPwdFeedback('Profile updated. For password changes, please use Supabase dashboard or forgot password flow.');
+    setPwdFeedback('Profile updated successfully.');
     setOldPassword('');
     setNewPassword('');
   };

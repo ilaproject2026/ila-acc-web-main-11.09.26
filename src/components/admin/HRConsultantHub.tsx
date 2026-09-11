@@ -7,7 +7,7 @@ import {
   getStaffRegistry, saveStaffMember, getAttendanceLogs, logStaffAttendance, 
   StaffUser, AttendanceLog, syncHRPayrollToFinance, addGlobalApproval, addGlobalUpdate
 } from '../../lib/db'
-import { supabase, supabaseAdmin } from '../../supabaseClient';
+import { apiClient } from '../../services/apiClient';
 import DepartmentApprovalsTab from './DepartmentApprovalsTab';
 import DepartmentUpdatesTab from './DepartmentUpdatesTab';
 
@@ -194,49 +194,17 @@ export default function HRConsultantHub() {
       return;
     }
     
-    let createdUserId = '';
     try {
-      if (supabaseAdmin) {
-        const { data, error } = await supabaseAdmin.auth.admin.createUser({
-          email: newEmail.trim(),
-          password: newPassword,
-          email_confirm: true,
-          user_metadata: { full_name: newName.trim(), department: newDept }
-        });
-        if (error && !error.message?.toLowerCase().includes('fetch')) {
-          alert(`Supabase Admin Auth Error: ${error.message}`);
-          return;
-        }
-        createdUserId = data?.user?.id || '';
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: newEmail.trim(),
-          password: newPassword,
-          options: {
-            data: { full_name: newName.trim(), department: newDept }
-          }
-        });
-        if (error && !error.message?.toLowerCase().includes('fetch')) {
-          alert(`Supabase Auth Error: ${error.message}`);
-          return;
-        }
-        createdUserId = data?.user?.id || '';
-      }
-
-      if (createdUserId) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: createdUserId,
-          full_name: newName.trim(),
-          department: newDept,
-          email: newEmail.trim(),
-          role: newDept
-        });
-        if (profileError) {
-          console.warn("Failed to map user to profiles table:", profileError.message);
-        }
-      }
+      await apiClient.auth.createStaffUser({
+        name: newName.trim(),
+        email: newEmail.trim(),
+        password: newPassword,
+        department: newDept,
+        role: 'team',
+        phone: newPhone.trim(),
+      });
     } catch (err: any) {
-      console.warn("Supabase auth offline fallback in HRConsultantHub:", err);
+      console.warn("DRF auth offline fallback in HRConsultantHub:", err);
     }
 
     const nextIdNum = Math.floor(Math.random() * 9000) + 1000;

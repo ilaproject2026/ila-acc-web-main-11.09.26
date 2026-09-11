@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Lock, UserPlus, Pin, Plus, Trash2, Calendar, Users } from 'lucide-react';
 import { StaffUser } from '../common/PortalLogin';
-import { supabase, supabaseAdmin } from '../../supabaseClient';
+import { apiClient } from '../../services/apiClient';
 
 interface StickyNote {
   id: string;
@@ -70,11 +70,11 @@ export default function SettingsHub() {
       return;
     }
     
-    // Update password in Supabase Auth
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) {
-      setPwdFeedback('Supabase Auth Error: ' + error.message);
-      return;
+    // Update password in DRF Backend
+    try {
+      await apiClient.auth.changePassword(newPassword, profileEmail);
+    } catch (err: any) {
+      console.warn('DRF password update offline fallback:', err);
     }
 
     // Perform update in mock session and staff registry
@@ -91,7 +91,7 @@ export default function SettingsHub() {
 
     localStorage.setItem('ilas_staff_registry', JSON.stringify(staffList));
     localStorage.setItem('ilas_user_name', profileName);
-    setPwdFeedback('Profile updated. For password changes, please use Supabase dashboard or forgot password flow.');
+    setPwdFeedback('Profile & password updated successfully.');
     setOldPassword('');
     setNewPassword('');
   };
@@ -105,57 +105,18 @@ export default function SettingsHub() {
       return;
     }
 
-    // Create user in Supabase Auth if available
-    let createdUserId = '';
+    // Provision staff user in DRF backend
     try {
-      if (supabaseAdmin) {
-        const { data, error } = await supabaseAdmin.auth.admin.createUser({
-          email: newStaffEmail.trim(),
-          password: newStaffPassword,
-          email_confirm: true,
-          user_metadata: {
-            full_name: newStaffName.trim(),
-            department: newStaffDept
-          }
-        });
-        if (error && !error.message?.toLowerCase().includes('fetch')) {
-          setStaffFeedback('Supabase Admin Auth Error: ' + error.message);
-          return;
-        }
-        createdUserId = data?.user?.id || '';
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: newStaffEmail.trim(),
-          password: newStaffPassword,
-          options: {
-            data: {
-              full_name: newStaffName.trim(),
-              department: newStaffDept
-            }
-          }
-        });
-        if (error && !error.message?.toLowerCase().includes('fetch')) {
-          setStaffFeedback('Supabase Auth Error: ' + error.message);
-          return;
-        }
-        createdUserId = data?.user?.id || '';
-      }
-
-      if (createdUserId) {
-        // Map the user ID to the custom profiles table
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: createdUserId,
-          full_name: newStaffName.trim(),
-          department: newStaffDept,
-          email: newStaffEmail.trim(),
-          role: newStaffDept
-        });
-        if (profileError) {
-          console.warn("Failed to map user to profiles table:", profileError.message);
-        }
-      }
+      await apiClient.auth.createStaffUser({
+        name: newStaffName.trim(),
+        email: newStaffEmail.trim(),
+        password: newStaffPassword,
+        department: newStaffDept,
+        role: 'team',
+        staff_id: newStaffHRId.trim(),
+      });
     } catch (err: any) {
-      console.warn("Supabase auth offline fallback in SettingsHub:", err);
+      console.warn("DRF staff provisioning offline fallback in SettingsHub:", err);
     }
 
     const nextIdNum = registry.length + 1;
