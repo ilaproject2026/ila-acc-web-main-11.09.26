@@ -90,3 +90,181 @@ class DispatchLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = DispatchLog.objects.all().select_related('workflow')
     serializer_class = DispatchLogSerializer
+
+
+from rest_framework.permissions import AllowAny
+from .models import ConsultantChatSession, ConsultantChatMessage
+from .serializers import ConsultantChatSessionSerializer, ConsultantChatMessageSerializer
+
+
+class ConsultantChatSessionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Live Consultant chat sessions, message logs, and transcript syncing
+    """
+    permission_classes = [AllowAny]
+    queryset = ConsultantChatSession.objects.all().order_by('-updated_at')
+    serializer_class = ConsultantChatSessionSerializer
+    lookup_field = 'session_id'
+
+    def create(self, request, *args, **kwargs):
+        session_id = request.data.get('session_id') or f"chat_{uuid.uuid4().hex[:12]}"
+        user_name = request.data.get('user_name', 'Guest Aspirant')
+        user_email = request.data.get('user_email', '')
+        user_phone = request.data.get('user_phone', '')
+        topic = request.data.get('topic', 'general')
+        metadata = request.data.get('metadata', {})
+
+        session, created = ConsultantChatSession.objects.get_or_create(
+            session_id=session_id,
+            defaults={
+                'user_name': user_name,
+                'user_email': user_email,
+                'user_phone': user_phone,
+                'topic': topic,
+                'metadata': metadata,
+            }
+        )
+
+        if not created:
+            # Update latest user info or topic if provided
+            updated = False
+            if user_name and session.user_name == 'Guest Aspirant':
+                session.user_name = user_name
+                updated = True
+            if user_email and not session.user_email:
+                session.user_email = user_email
+                updated = True
+            if topic and session.topic != topic:
+                session.topic = topic
+                updated = True
+            if metadata:
+                session.metadata.update(metadata)
+                updated = True
+            if updated:
+                session.save()
+
+        serializer = self.get_serializer(session)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='message')
+    def add_message(self, request, session_id=None):
+        session = self.get_object()
+        sender = request.data.get('sender', 'user')
+        if sender == 'assistant' or sender == 'bot':
+            sender = 'assistant'
+        else:
+            sender = 'user'
+
+        content = request.data.get('content', '').strip()
+        topic = request.data.get('topic', session.topic)
+        msg_id = request.data.get('id') or f"msg_{uuid.uuid4().hex[:10]}"
+
+        if not content:
+            return Response({'error': 'Message content cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create persistent message record
+        chat_msg = ConsultantChatMessage.objects.create(
+            id=msg_id,
+            session=session,
+            sender=sender,
+            content=content,
+            topic=topic
+        )
+
+        # Append to session history JSON
+        history_item = {
+            'id': chat_msg.id,
+            'role': chat_msg.sender,
+            'content': chat_msg.content,
+            'topic': chat_msg.topic,
+            'timestamp': chat_msg.timestamp.isoformat()
+        }
+        
+        history = list(session.messages_history or [])
+        # Avoid duplicate by id
+        if not any(item.get('id') == chat_msg.id for item in history):
+            history.append(history_item)
+            session.messages_history = history
+
+        session.message_count = len(history)
+        session.topic = topic
+        session.save()
+
+        return Response({
+            'success': True,
+            'message_id': chat_msg.id,
+            'session_id': session.session_id,
+            'message_count': session.message_count,
+            'recorded_at': chat_msg.timestamp
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], url_path='sync')
+    def sync_session(self, request):
+        """
+        Batch synchronizes conversation messages and user context
+        """
+        session_id = request.data.get('session_id') or f"chat_{uuid.uuid4().hex[:12]}"
+        user_name = request.data.get('user_name', 'Guest Aspirant')
+        user_email = request.data.get('user_email', '')
+        user_phone = request.data.get('user_phone', '')
+        topic = request.data.get('topic', 'general')
+        messages = request.data.get('messages', [])
+        metadata = request.data.get('metadata', {})
+
+        session, _ = ConsultantChatSession.objects.get_or_create(
+            session_id=session_id,
+            defaults={
+                'user_name': user_name,
+                'user_email': user_email,
+                'user_phone': user_phone,
+                'topic': topic,
+                'metadata': metadata,
+            }
+        )
+
+        if user_name and session.user_name == 'Guest Aspirant':
+            session.user_name = user_name
+        if user_email and not session.user_email:
+            session.user_email = user_email
+        if topic:
+            session.topic = topic
+        if metadata:
+            session.metadata.update(metadata)
+
+        # Process messages list
+        history = list(session.messages_history or [])
+        for m in messages:
+            m_id = m.get('id') or f"msg_{uuid.uuid4().hex[:8]}"
+            m_role = 'assistant' if m.get('role') in ['assistant', 'bot'] else 'user'
+            m_content = m.get('content', '')
+            m_topic = m.get('topic', session.topic)
+
+            if not any(item.get('id') == m_id for item in history):
+                history.append({
+                    'id': m_id,
+                    'role': m_role,
+                    'content': m_content,
+                    'topic': m_topic,
+                    'timestamp': m.get('timestamp') or timezone.now().isoformat()
+                })
+
+            # Create DB message record if not exists
+            if not ConsultantChatMessage.objects.filter(id=m_id).exists():
+                ConsultantChatMessage.objects.create(
+                    id=m_id,
+                    session=session,
+                    sender=m_role,
+                    content=m_content,
+                    topic=m_topic
+                )
+
+        session.messages_history = history
+        session.message_count = len(history)
+        session.save()
+
+        return Response({
+            'success': True,
+            'session_id': session.session_id,
+            'message_count': session.message_count,
+            'session': ConsultantChatSessionSerializer(session).data
+        }, status=status.HTTP_200_OK)

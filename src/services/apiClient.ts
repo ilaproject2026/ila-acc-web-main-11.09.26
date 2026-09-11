@@ -209,6 +209,49 @@ class ApiClient {
       return this.patch(`intake-tracking/inquiries/${id}/`, { status });
     },
   };
+
+  // Live Consultant Chatbot Services
+  public consultant = {
+    createSession: async (data: {
+      session_id?: string;
+      user_name?: string;
+      user_email?: string;
+      topic?: string;
+      metadata?: any;
+    }): Promise<any> => {
+      return this.post('communication-engine/chat-sessions/', data);
+    },
+
+    recordMessage: async (
+      sessionId: string,
+      data: { sender: string; content: string; topic?: string; id?: string }
+    ): Promise<any> => {
+      return this.post(`communication-engine/chat-sessions/${sessionId}/message/`, data);
+    },
+
+    syncSession: async (data: {
+      session_id: string;
+      user_name?: string;
+      user_email?: string;
+      topic?: string;
+      messages: any[];
+      metadata?: any;
+    }): Promise<any> => {
+      return this.post('communication-engine/chat-sessions/sync/', data);
+    },
+
+    getSessions: async (params?: Record<string, string>): Promise<any> => {
+      let queryStr = '';
+      if (params && Object.keys(params).length > 0) {
+        queryStr = '?' + new URLSearchParams(params).toString();
+      }
+      return this.get(`communication-engine/chat-sessions/${queryStr}`);
+    },
+
+    getSession: async (sessionId: string): Promise<any> => {
+      return this.get(`communication-engine/chat-sessions/${sessionId}/`);
+    },
+  };
 }
 
 export const apiClient = new ApiClient();

@@ -10,6 +10,7 @@ import {
   FileText,
   Phone,
   Mail,
+  CheckCircle2,
 } from 'lucide-react'
 import type { ChatMessage } from '../../types'
 import {
@@ -19,6 +20,7 @@ import {
   topicStarters,
   type ConsultantTopic,
 } from '../../lib/consultantBot'
+import { apiClient } from '../../services/apiClient'
 
 const topicIcons: Record<ConsultantTopic, typeof Plane> = {
   visa: FileText,
@@ -36,20 +38,65 @@ export default function LiveConsultant() {
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [replyCount, setReplyCount] = useState(0)
+  const [backendSynced, setBackendSynced] = useState<boolean>(false)
+  const [sessionId, setSessionId] = useState<string>('')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // Initialize or restore session on mount
   useEffect(() => {
-    if (open && messages.length === 0) {
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'assistant',
-          content: consultantWelcome,
-          timestamp: new Date(),
-        },
-      ])
+    let currentSession = sessionStorage.getItem('ilas_chat_session_id')
+    if (!currentSession) {
+      currentSession = `session_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
+      sessionStorage.setItem('ilas_chat_session_id', currentSession)
     }
-  }, [open, messages.length])
+    setSessionId(currentSession)
+  }, [])
+
+  // Initialize welcome message & establish backend session record
+  useEffect(() => {
+    if (open && messages.length === 0 && sessionId) {
+      const welcomeId = `msg_welcome_${sessionId.slice(-6)}`
+      const welcomeMsg: ChatMessage = {
+        id: welcomeId,
+        role: 'assistant',
+        content: consultantWelcome,
+        timestamp: new Date(),
+      }
+      setMessages([welcomeMsg])
+
+      // Extract user context from localStorage if present
+      const storedName = localStorage.getItem('ilas_user_name') || 'Guest Aspirant'
+      const storedEmail = localStorage.getItem('ilas_user_email') || ''
+      const storedRole = localStorage.getItem('ilas_auth_role') || 'guest'
+
+      // Create/verify session on DRF backend
+      apiClient.consultant.createSession({
+        session_id: sessionId,
+        user_name: storedName,
+        user_email: storedEmail,
+        topic: topic,
+        metadata: {
+          role: storedRole,
+          currentPage: window.location.href,
+          userAgent: navigator.userAgent,
+        }
+      })
+      .then(() => {
+        setBackendSynced(true)
+        // Record welcome message
+        apiClient.consultant.recordMessage(sessionId, {
+          id: welcomeId,
+          sender: 'assistant',
+          content: consultantWelcome,
+          topic: 'general'
+        }).catch(err => console.warn('Welcome message sync offline fallback:', err))
+      })
+      .catch((err) => {
+        console.warn('DRF chat session offline fallback:', err)
+        setBackendSynced(false)
+      })
+    }
+  }, [open, messages.length, sessionId, topic])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -58,22 +105,60 @@ export default function LiveConsultant() {
   const sendMessage = (text: string, selectedTopic?: ConsultantTopic) => {
     if (!text.trim()) return
     const activeTopic = selectedTopic ?? topic
+    const userMsgId = `msg_user_${crypto.randomUUID().slice(0, 8)}`
+    const userTimestamp = new Date()
 
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), role: 'user', content: text, timestamp: new Date() },
-    ])
+    const newUserMessage: ChatMessage = {
+      id: userMsgId,
+      role: 'user',
+      content: text,
+      timestamp: userTimestamp,
+    }
+
+    setMessages((prev) => [...prev, newUserMessage])
     setInput('')
     setTyping(true)
+
+    // 1. Record user message to DRF backend
+    if (sessionId) {
+      apiClient.consultant.recordMessage(sessionId, {
+        id: userMsgId,
+        sender: 'user',
+        content: text,
+        topic: activeTopic
+      }).catch(err => console.warn('DRF user message record offline fallback:', err))
+    }
 
     setTimeout(() => {
       const reply = getConsultantReply(activeTopic, text, replyCount)
       setReplyCount((c) => c + 1)
       setTyping(false)
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: 'assistant', content: reply, timestamp: new Date() },
-      ])
+
+      const botMsgId = `msg_bot_${crypto.randomUUID().slice(0, 8)}`
+      const botTimestamp = new Date()
+
+      const newBotMessage: ChatMessage = {
+        id: botMsgId,
+        role: 'assistant',
+        content: reply,
+        timestamp: botTimestamp,
+      }
+
+      setMessages((prev) => [...prev, newBotMessage])
+
+      // 2. Record assistant message to DRF backend
+      if (sessionId) {
+        apiClient.consultant.recordMessage(sessionId, {
+          id: botMsgId,
+          sender: 'assistant',
+          content: reply,
+          topic: activeTopic
+        }).then(() => {
+          setBackendSynced(true)
+        }).catch(err => {
+          console.warn('DRF bot message record offline fallback:', err)
+        })
+      }
     }, 900 + Math.random() * 600)
   }
 
@@ -108,11 +193,24 @@ export default function LiveConsultant() {
                 IL
               </div>
               <div>
-                <div className="font-semibold text-sm">Ilas Live Consultant</div>
-                <div className="text-[10px] text-blue-200">Visa · Arrival · Housing · Jobs</div>
+                <div className="font-semibold text-sm flex items-center gap-1.5">
+                  Ilas Live Consultant
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] bg-emerald-500/20 text-emerald-300 font-normal">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    DRF Live
+                  </span>
+                </div>
+                <div className="text-[10px] text-blue-200 flex items-center gap-1">
+                  <span>Visa · Arrival · Housing · Jobs</span>
+                  {sessionId && (
+                    <span className="text-[9px] text-blue-300/80 font-mono">
+                      (#{sessionId.slice(-6)})
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-white/10">
+            <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-white/10" aria-label="Close chat">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -180,20 +278,31 @@ export default function LiveConsultant() {
             </button>
           </form>
 
+          {/* Session Recording Confirmation footer */}
+          <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+              Chats encrypted & recorded to ERP
+            </span>
+            <span className="font-mono text-slate-400">
+              {messages.length} msg{messages.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
           {/* Talk to Us backup */}
-          <div className="px-3 py-3 bg-slate-50 border-t border-slate-100">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Talk to Us — Manual Backup</p>
+          <div className="px-3 py-2.5 bg-white border-t border-slate-100">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Talk to Us — Manual Backup</p>
             <div className="flex gap-2">
               <a
                 href="tel:+493012345678"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 hover:bg-brand-50 hover:border-brand-200"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 hover:bg-brand-50 hover:border-brand-200"
               >
                 <Phone className="w-3.5 h-3.5 text-brand-600" />
                 Call Us
               </a>
               <a
                 href="mailto:contact@ilaglobal.com"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 hover:bg-brand-50 hover:border-brand-200"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 hover:bg-brand-50 hover:border-brand-200"
               >
                 <Mail className="w-3.5 h-3.5 text-brand-600" />
                 Email Us

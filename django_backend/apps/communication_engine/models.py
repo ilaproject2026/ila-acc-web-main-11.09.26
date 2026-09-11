@@ -85,3 +85,67 @@ class DispatchLog(models.Model):
 
     def __str__(self):
         return f"{self.recipient_name} - {self.channel} ({self.status})"
+
+
+class ConsultantChatSession(models.Model):
+    session_id = models.CharField(max_length=64, unique=True, db_index=True)
+    user_name = models.CharField(max_length=150, default="Guest Aspirant", blank=True)
+    user_email = models.EmailField(blank=True, default="")
+    user_phone = models.CharField(max_length=50, blank=True, default="")
+    topic = models.CharField(max_length=50, default="general")
+    status = models.CharField(
+        max_length=32,
+        choices=[
+            ('active', 'Active Chatting'),
+            ('resolved', 'Resolved by AI'),
+            ('escalated', 'Escalated to Human Counselor'),
+            ('closed', 'Closed Session'),
+        ],
+        default='active'
+    )
+    message_count = models.PositiveIntegerField(default=0)
+    messages_history = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Chronological conversation record [{id, role, content, timestamp, topic}]"
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Contextual client parameters (e.g. current page, referral, device info)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = _('Consultant Chat Session')
+        verbose_name_plural = _('Consultant Chat Sessions')
+
+    def __str__(self):
+        return f"Chat [{self.session_id[:8]}] - {self.user_name} ({self.topic})"
+
+
+class ConsultantChatMessage(models.Model):
+    id = models.CharField(primary_key=True, max_length=64, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        ConsultantChatSession,
+        related_name='chat_messages',
+        on_delete=models.CASCADE
+    )
+    sender = models.CharField(
+        max_length=20,
+        choices=[('user', 'User / Applicant'), ('assistant', 'Ilas AI Consultant')],
+        default='user'
+    )
+    content = models.TextField()
+    topic = models.CharField(max_length=50, default='general')
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
+        verbose_name = _('Consultant Chat Message')
+        verbose_name_plural = _('Consultant Chat Messages')
+
+    def __str__(self):
+        return f"[{self.sender}] {self.content[:40]}..."
