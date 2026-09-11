@@ -1,22 +1,40 @@
 import { useState, useEffect } from 'react';
-import { X, Sparkles, ShieldCheck, Mail, ClipboardCheck, Plane, Briefcase, GraduationCap } from 'lucide-react';
+import { X, Sparkles, ShieldCheck, Mail, ClipboardCheck, Plane, Briefcase, GraduationCap, Database, CheckCircle2 } from 'lucide-react';
 import { saveInquiry } from '../../lib/db';
+import { apiClient } from '../../services/apiClient';
 
-type FormType = 'visa' | 'course' | 'job' | 'earn-learn';
+export type FormType = 'visa' | 'course' | 'job' | 'earn-learn';
+
+export interface IntakeEventDetail {
+  type: FormType;
+  [key: string]: any;
+}
+
+/**
+ * Global trigger utility to open Unified Intake Modal from any page with arbitrary dynamic data
+ */
+export const openUnifiedIntake = (type: FormType, extraData?: Record<string, any>) => {
+  window.dispatchEvent(
+    new CustomEvent('open-unified-intake', {
+      detail: { type, ...(extraData || {}) },
+    })
+  );
+};
 
 export default function UnifiedIntakeForms() {
   const [open, setOpen] = useState(false);
   const [formType, setFormType] = useState<FormType>('visa');
   const [step, setStep] = useState(1);
   const [analyzing, setAnalyzing] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'synced' | 'offline' | null>(null);
   const [evalResult, setEvalResult] = useState<{
     score: number;
     path: string;
     actionPlan: string[];
   } | null>(null);
 
-  // Form states
-  const [formData, setFormData] = useState({
+  // Form states (contains standard defaults plus arbitrary dynamic keys from any flow)
+  const [formData, setFormData] = useState<Record<string, any>>({
     name: '',
     email: '',
     phone: '',
@@ -39,14 +57,22 @@ export default function UnifiedIntakeForms() {
   });
 
   useEffect(() => {
-    const handleOpen = (e: CustomEvent<{ type: FormType }>) => {
+    const handleOpen = (e: CustomEvent<IntakeEventDetail>) => {
       if (e.detail && e.detail.type) {
         setFormType(e.detail.type);
+      }
+      if (e.detail) {
+        const { type, ...rest } = e.detail;
+        setFormData(prev => ({
+          ...prev,
+          ...rest,
+        }));
       }
       setOpen(true);
       setStep(1);
       setEvalResult(null);
       setAnalyzing(false);
+      setSubmitStatus(null);
     };
 
     window.addEventListener('open-unified-intake' as any, handleOpen as any);
@@ -103,7 +129,7 @@ export default function UnifiedIntakeForms() {
     return plan;
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.phone) {
       alert("Please fill in contact details.");
@@ -112,53 +138,94 @@ export default function UnifiedIntakeForms() {
 
     setAnalyzing(true);
 
-    setTimeout(() => {
-      const calculatedScore = calculateAIScore();
-      const plan = generateAIActionPlan(calculatedScore);
-      
-      let suggestedPath = '';
-      if (formType === 'visa') suggestedPath = 'German Student/Job Visa Fast-Track';
-      else if (formType === 'course') suggestedPath = `${formData.courseInterest} - ${formData.learningPath}`;
-      else if (formType === 'job') suggestedPath = `${formData.jobField} Corporate Placement`;
-      else if (formType === 'earn-learn') suggestedPath = 'Ausbildung + Part-Time Syndicate Onboarding';
+    const calculatedScore = calculateAIScore();
+    const plan = generateAIActionPlan(calculatedScore);
+    
+    let suggestedPath = '';
+    if (formType === 'visa') suggestedPath = 'German Student/Job Visa Fast-Track';
+    else if (formType === 'course') suggestedPath = `${formData.courseInterest} - ${formData.learningPath}`;
+    else if (formType === 'job') suggestedPath = `${formData.jobField} Corporate Placement`;
+    else if (formType === 'earn-learn') suggestedPath = 'Ausbildung + Part-Time Syndicate Onboarding';
 
-      setEvalResult({
-        score: calculatedScore,
-        path: suggestedPath,
-        actionPlan: plan
-      });
+    setEvalResult({
+      score: calculatedScore,
+      path: suggestedPath,
+      actionPlan: plan
+    });
 
-      // Save to database layer
-      try {
-        const sourceTags: Record<FormType, string> = {
-          'visa': 'Visa Eligibility Form',
-          'course': 'Course Level Assessment Form',
-          'job': 'Job Placement Registration Form',
-          'earn-learn': 'Work While You Study Program Registry Form'
-        };
+    const sourceTags: Record<FormType, string> = {
+      'visa': 'Visa Eligibility Form',
+      'course': 'Course Level Assessment Form',
+      'job': 'Job Placement Registration Form',
+      'earn-learn': 'Work While You Study Program Registry Form'
+    };
 
-        saveInquiry({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          course: formType === 'course' ? formData.courseInterest : `${formType.toUpperCase()} Application`,
-          path: suggestedPath,
-          price: formType === 'course' ? '$199.00' : 'Complimentary Intake',
-          paymentStatus: 'Pending',
-          category: formType === 'visa' ? 'Visa' : formType === 'job' ? 'Jobs' : formType === 'earn-learn' ? 'Study Abroad' : 'Education',
-          aiScore: calculatedScore,
-          aiPath: suggestedPath,
-          aiActionPlan: plan,
-          docStatus: 'Pending',
-          source: sourceTags[formType] || 'Website Hero CTA'
-        });
-      } catch (err) {
-        console.error('Error saving inquiry:', err);
+    const categoryMap: Record<FormType, string> = {
+      'visa': 'Visa',
+      'course': 'Education',
+      'job': 'Jobs',
+      'earn-learn': 'Study Abroad'
+    };
+
+    // Construct flexible payload for Django REST Framework backend
+    const intakePayload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      form_type: formType,
+      category: categoryMap[formType] || 'Education',
+      department: categoryMap[formType] || 'Education',
+      course: formType === 'course' ? formData.courseInterest : `${formType.toUpperCase()} Application`,
+      program_of_interest: formType === 'course' ? formData.courseInterest : `${formType.toUpperCase()} Application`,
+      path: suggestedPath,
+      price: formType === 'course' ? '$199.00' : 'Complimentary Intake',
+      payment_status: 'Pending',
+      ai_score: calculatedScore,
+      ai_path: suggestedPath,
+      ai_action_plan: plan,
+      doc_status: 'Pending',
+      source: sourceTags[formType] || 'Website Hero CTA',
+      dynamic_data: {
+        ...formData,
+        originatingFormType: formType,
+        clientTimestamp: new Date().toISOString()
       }
+    };
 
-      setAnalyzing(false);
-      setStep(2);
-    }, 2000);
+    // 1. Submit to Django REST Framework backend
+    try {
+      await apiClient.intake.submit(intakePayload);
+      setSubmitStatus('synced');
+    } catch (err) {
+      console.warn('DRF Intake Submission offline fallback:', err);
+      setSubmitStatus('offline');
+    }
+
+    // 2. Synchronize to local database layer for immediate UI reactivity
+    try {
+      saveInquiry({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        course: formType === 'course' ? formData.courseInterest : `${formType.toUpperCase()} Application`,
+        path: suggestedPath,
+        price: formType === 'course' ? '$199.00' : 'Complimentary Intake',
+        paymentStatus: 'Pending',
+        category: categoryMap[formType] as any || 'Education',
+        aiScore: calculatedScore,
+        aiPath: suggestedPath,
+        aiActionPlan: plan,
+        docStatus: 'Pending',
+        source: sourceTags[formType] || 'Website Hero CTA',
+        formType: formType,
+        dynamicData: { ...formData }
+      });
+    } catch (err) {
+      console.error('Error saving inquiry locally:', err);
+    }
+
+    setAnalyzing(false);
+    setStep(2);
   };
 
   return (
@@ -189,7 +256,9 @@ export default function UnifiedIntakeForms() {
                 {formType === 'job' && 'Job Search & Placement Registration'}
                 {formType === 'earn-learn' && 'Work While You Study Program Registry'}
               </h2>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 block">ERP Integrated Automated AI Ingestion</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 block">
+                DRF Backend Connected Dynamic Ingestion
+              </span>
             </div>
           </div>
 
@@ -198,59 +267,60 @@ export default function UnifiedIntakeForms() {
               
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Full Name</label>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Full Legal Name</label>
                   <input 
                     type="text" 
                     name="name" 
-                    value={formData.name} 
+                    value={formData.name || ''} 
                     onChange={handleInputChange} 
                     required 
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="Jane Doe"
+                    placeholder="e.g. Liam Smith"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-brand-600"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Phone / WhatsApp</label>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Email Address</label>
                   <input 
-                    type="tel" 
-                    name="phone" 
-                    value={formData.phone} 
+                    type="email" 
+                    name="email" 
+                    value={formData.email || ''} 
                     onChange={handleInputChange} 
                     required 
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="+91 98765 43210"
+                    placeholder="name@example.com"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-brand-600"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Email Address</label>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">WhatsApp / Phone Number</label>
                 <input 
-                  type="email" 
-                  name="email" 
-                  value={formData.email} 
+                  type="tel" 
+                  name="phone" 
+                  value={formData.phone || ''} 
                   onChange={handleInputChange} 
                   required 
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500"
-                  placeholder="jane.doe@gmail.com"
+                  placeholder="+49 / +91 / +1 ..."
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-brand-600"
                 />
               </div>
 
+              {/* Dynamic Sections Based on Originating Flow */}
               {formType === 'visa' && (
                 <div className="space-y-4 pt-3 border-t border-slate-100">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Highest Education Level</label>
-                      <select name="educationLevel" value={formData.educationLevel} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
-                        <option value="high-school">High School / Secondary</option>
-                        <option value="bachelor">Bachelor's Degree</option>
-                        <option value="master">Master's Degree</option>
-                        <option value="medical">Medical / Nursing Degree</option>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Current Academic Level</label>
+                      <select name="educationLevel" value={formData.educationLevel || 'bachelor'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                        <option value="high-school">High School (12th Passed)</option>
+                        <option value="diploma">3-Year Technical Diploma</option>
+                        <option value="bachelor">Bachelor's Degree (Graduated)</option>
+                        <option value="master">Master's Degree Holder</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Current German Language</label>
-                      <select name="languageSkills" value={formData.languageSkills} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                      <select name="languageSkills" value={formData.languageSkills || 'none'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
                         <option value="none">No German skills yet</option>
                         <option value="A1">A1-A2 Beginner</option>
                         <option value="B1">B1-B2 Intermediate</option>
@@ -261,14 +331,14 @@ export default function UnifiedIntakeForms() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Visa Refusal History</label>
-                      <select name="visaHistory" value={formData.visaHistory} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                      <select name="visaHistory" value={formData.visaHistory || 'no-refusals'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
                         <option value="no-refusals">No Previous Refusals</option>
                         <option value="has-refusals">Yes, has prior visa refusals</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">German Blocked Bank Account (€11k+)</label>
-                      <select name="hasBlockedAccount" value={formData.hasBlockedAccount} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                      <select name="hasBlockedAccount" value={formData.hasBlockedAccount || 'no'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
                         <option value="no">No, requires assistance setting up</option>
                         <option value="yes">Yes, ready / pre-arranged</option>
                       </select>
@@ -282,7 +352,7 @@ export default function UnifiedIntakeForms() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Select Academic Course</label>
-                      <select name="courseInterest" value={formData.courseInterest} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                      <select name="courseInterest" value={formData.courseInterest || 'German Language A1–C2'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
                         <option value="German Language A1–C2">German Language A1–C2</option>
                         <option value="IELTS / TOEFL Proficiency">IELTS / TOEFL Proficiency</option>
                         <option value="Software Engineering & Full Stack">Software Engineering & Full Stack</option>
@@ -291,7 +361,7 @@ export default function UnifiedIntakeForms() {
                     </div>
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Learning Path Choice</label>
-                      <select name="learningPath" value={formData.learningPath} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                      <select name="learningPath" value={formData.learningPath || 'Intelli-Coach AI Trainer™'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
                         <option value="Intelli-Coach AI Trainer™">Intelli-Coach AI Trainer™ (Adaptive)</option>
                         <option value="Video + AI Training">Video + AI Training (Blended)</option>
                         <option value="Human Training Live">Human Training Live (Instructors)</option>
@@ -300,7 +370,7 @@ export default function UnifiedIntakeForms() {
                   </div>
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Allocated Weekly Study Hours</label>
-                    <select name="studyHoursPerWeek" value={formData.studyHoursPerWeek} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                    <select name="studyHoursPerWeek" value={formData.studyHoursPerWeek || '10'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
                       <option value="under-10">Under 10 hours / week</option>
                       <option value="10-20">10 to 20 hours / week</option>
                       <option value="20+">20+ hours / week (Fast-Track)</option>
@@ -314,21 +384,30 @@ export default function UnifiedIntakeForms() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Target Designation / Field</label>
-                      <select name="jobField" value={formData.jobField} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                      <select name="jobField" value={formData.jobField || 'Software Engineering'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
                         <option value="Software Engineering">Software Engineering & IT</option>
                         <option value="Nursing & Healthcare">Healthcare, Stethoscope / Nursing</option>
                         <option value="Hotel Management / Ausbildung">Ausbildung / Hotel Management</option>
-                        <option value="Accounting & Finance">Accounting & Tally Systems</option>
+                        <option value="Supply Chain & Logistics">Trucking, Logistics & Supply Chain</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Total Work Experience</label>
-                      <select name="workExpYears" value={formData.workExpYears} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
-                        <option value="0">Under 1 Year / Entry Level</option>
-                        <option value="2">1 to 3 Years Intermediate</option>
-                        <option value="5">5+ Years Professional</option>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Relevant Industry Exp</label>
+                      <select name="workExpYears" value={formData.workExpYears || '2'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                        <option value="0">Entry Level / Fresh Graduate</option>
+                        <option value="2">1 to 3 Years Professional</option>
+                        <option value="5">4 to 7 Years Mid-Level</option>
+                        <option value="8">8+ Years Senior / Lead</option>
                       </select>
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Expected Salary Bracket</label>
+                    <select name="preferredSalary" value={formData.preferredSalary || '$40,000'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                      <option value="€35,000 - €45,000">€35,000 - €45,000 / year</option>
+                      <option value="€45,000 - €60,000">€45,000 - €60,000 / year</option>
+                      <option value="€60,000+">€60,000+ / year (Blue Card Eligible)</option>
+                    </select>
                   </div>
                 </div>
               )}
@@ -337,18 +416,19 @@ export default function UnifiedIntakeForms() {
                 <div className="space-y-4 pt-3 border-t border-slate-100">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Track Priority Model</label>
-                      <select name="earnPriority" value={formData.earnPriority} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
-                        <option value="study-first">Study First priority (Student Track)</option>
-                        <option value="work-first">Work First priority (Professional Track)</option>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Pathway Balance Priority</label>
+                      <select name="earnPriority" value={formData.earnPriority || 'study-first'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                        <option value="study-first">Education Focused (Part-Time Earn)</option>
+                        <option value="earn-first">Direct Stipend & Apprenticeship (Ausbildung)</option>
+                        <option value="hybrid">Corporate IT Placement Syndicate</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Available Work Hours / Week</label>
-                      <select name="availableHours" value={formData.availableHours} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
-                        <option value="10">Up to 10 Hours / Week</option>
-                        <option value="20">Up to 20 Hours / Week</option>
-                        <option value="40">40 Hours / Week (Full-Time)</option>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1">Available Work Hours</label>
+                      <select name="availableHours" value={formData.availableHours || '20'} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+                        <option value="10">Up to 10 hrs / week (Micro-tasks)</option>
+                        <option value="20">20 hrs / week (Legal Student Limit)</option>
+                        <option value="full-time">Full-Time Semester Break Rotation</option>
                       </select>
                     </div>
                   </div>
@@ -356,7 +436,7 @@ export default function UnifiedIntakeForms() {
               )}
 
               {analyzing && (
-                <div className="bg-brand-50 border border-brand-100 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
+                <div className="flex items-center justify-center gap-2 p-3 bg-brand-50 rounded-xl border border-brand-100">
                   <Sparkles className="w-5 h-5 text-brand-600 animate-spin" />
                   <span className="text-xs font-bold text-brand-900 animate-bounce">
                     Ilas AI Analyzing Profile & Compatibility...
@@ -391,7 +471,14 @@ export default function UnifiedIntakeForms() {
                   </span>
                 </div>
                 <h4 className="font-bold text-base mb-1">Suggested Path: {evalResult.path}</h4>
-                <p className="text-xs text-slate-300 font-semibold italic">End-to-End integration confirmed across internal CRM databases.</p>
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/10 text-xs">
+                  <Database className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="text-emerald-300 font-semibold">
+                    {submitStatus === 'synced' 
+                      ? 'Securely Recorded in Django REST Framework ERP Backend' 
+                      : 'Recorded in ILA Central Intake Hub'}
+                  </span>
+                </div>
               </div>
 
               {/* Dynamic Action Checklist */}
@@ -415,7 +502,7 @@ export default function UnifiedIntakeForms() {
                 <div>
                   <h5 className="font-bold text-xs uppercase tracking-wider">Automated Email Guidance Dispatched</h5>
                   <p className="text-xs text-blue-700 leading-normal mt-0.5 font-semibold">
-                    A personalized PDF checklist detailing required files and next steps has been dispatched to <span className="font-bold">{formData.email}</span>.
+                    A personalized checklist detailing required files and next steps has been dispatched to <span className="font-bold">{formData.email}</span>.
                   </p>
                 </div>
               </div>
@@ -428,6 +515,7 @@ export default function UnifiedIntakeForms() {
                   }} 
                   className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold transition-all shadow-md text-xs uppercase tracking-widest flex items-center justify-center gap-1.5"
                 >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   Open ERP CRM (Review Applicant AI Summary)
                 </button>
                 <button 
@@ -442,7 +530,6 @@ export default function UnifiedIntakeForms() {
           )}
 
         </div>
-
       </div>
     </div>
   );

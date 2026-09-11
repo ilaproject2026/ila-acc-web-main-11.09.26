@@ -4,9 +4,9 @@ from .models import DepartmentInquiry, FollowUpAutoTriggerRule, SocialMediaCampa
 
 @admin.register(DepartmentInquiry)
 class DepartmentInquiryAdmin(admin.ModelAdmin):
-    list_display = ("name", "department", "inquiry_type", "phone", "program_of_interest", "status", "created_at")
-    list_filter = ("department", "inquiry_type", "status")
-    search_fields = ("name", "email", "phone")
+    list_display = ("name", "category", "form_type", "phone", "program_of_interest", "status", "created_at")
+    list_filter = ("category", "form_type", "status", "department")
+    search_fields = ("name", "email", "phone", "program_of_interest")
 
 
 @admin.register(FollowUpAutoTriggerRule)

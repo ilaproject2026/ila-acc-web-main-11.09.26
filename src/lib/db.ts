@@ -1,3 +1,5 @@
+import { apiClient } from '../services/apiClient';
+
 export interface FollowUpRecord {
   id: string;
   date: string;
@@ -47,6 +49,8 @@ export interface Inquiry {
   followUpStatus?: 'Due Today' | 'Overdue' | 'Scheduled' | 'Completed' | 'Pending';
   followUpHistory?: FollowUpRecord[];
   visaProcessingStage?: 'Not Applicable' | 'Profile Assessment' | 'APS Certificate' | 'Blocked Account' | 'Embassy Appointment' | 'Visa Approved' | 'Visa Rejected';
+  formType?: string;
+  dynamicData?: Record<string, any>;
 }
 
 export interface VisitorLog {
@@ -1164,6 +1168,34 @@ export const saveInquiry = (inquiry: Omit<Inquiry, 'id' | 'timestamp'>): Inquiry
   const updated = [newInquiry, ...inquiries];
   localStorage.setItem('ilas_inquiries', JSON.stringify(updated));
   window.dispatchEvent(new CustomEvent('ilas-inquiries-changed'));
+
+  // Background sync to Django REST Framework backend
+  try {
+    apiClient.intake.submit({
+      name: newInquiry.name,
+      email: newInquiry.email,
+      phone: newInquiry.phone,
+      category: newInquiry.category,
+      department: newInquiry.department || newInquiry.category,
+      form_type: newInquiry.formType || newInquiry.category?.toLowerCase() || 'general',
+      course: newInquiry.course,
+      program_of_interest: newInquiry.course,
+      path: newInquiry.path,
+      price: newInquiry.price,
+      payment_status: newInquiry.paymentStatus,
+      ai_score: newInquiry.aiScore,
+      ai_path: newInquiry.aiPath,
+      ai_action_plan: newInquiry.aiActionPlan,
+      doc_status: newInquiry.docStatus,
+      source: newInquiry.source,
+      dynamic_data: newInquiry.dynamicData || {}
+    }).catch(err => {
+      console.warn('DRF backend inquiry sync offline fallback:', err);
+    });
+  } catch {
+    // ignore
+  }
+
   return updated;
 };
 

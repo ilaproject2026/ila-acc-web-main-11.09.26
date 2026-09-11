@@ -10,18 +10,38 @@ from .serializers import (
 )
 
 
+from rest_framework.permissions import AllowAny
+from django.db.models import Q
+
+
 class DepartmentInquiryViewSet(viewsets.ModelViewSet):
+    permission_classes = [AllowAny]
     queryset = DepartmentInquiry.objects.all().order_by("-created_at")
     serializer_class = DepartmentInquirySerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
         department = self.request.query_params.get("department")
+        category = self.request.query_params.get("category")
+        form_type = self.request.query_params.get("form_type")
         status_val = self.request.query_params.get("status")
+        search = self.request.query_params.get("search") or self.request.query_params.get("q")
+
         if department and department != "All":
-            qs = qs.filter(department__iexact=department)
+            qs = qs.filter(Q(department__iexact=department) | Q(category__iexact=department))
+        if category and category != "All":
+            qs = qs.filter(Q(category__iexact=category) | Q(department__iexact=category))
+        if form_type and form_type != "All":
+            qs = qs.filter(form_type__iexact=form_type)
         if status_val and status_val != "All":
             qs = qs.filter(status=status_val)
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search) |
+                Q(email__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(program_of_interest__icontains=search)
+            )
         return qs
 
 

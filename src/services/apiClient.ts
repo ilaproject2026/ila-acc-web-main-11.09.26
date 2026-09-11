@@ -190,6 +190,25 @@ class ApiClient {
       window.dispatchEvent(new CustomEvent('ilas-auth-state-changed'));
     },
   };
+
+  // Intake & Inquiry services (dynamic form ingestion)
+  public intake = {
+    submit: async (data: Record<string, any>): Promise<any> => {
+      return this.post('intake-tracking/inquiries/', data);
+    },
+
+    getInquiries: async (params?: Record<string, string>): Promise<any> => {
+      let queryStr = '';
+      if (params && Object.keys(params).length > 0) {
+        queryStr = '?' + new URLSearchParams(params).toString();
+      }
+      return this.get(`intake-tracking/inquiries/${queryStr}`);
+    },
+
+    updateStatus: async (id: number | string, status: string): Promise<any> => {
+      return this.patch(`intake-tracking/inquiries/${id}/`, { status });
+    },
+  };
 }
 
 export const apiClient = new ApiClient();
