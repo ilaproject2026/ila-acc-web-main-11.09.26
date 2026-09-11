@@ -1,0 +1,6 @@
+STRICT AI INTEGRATION RULES:
+1. SDK: Always use '@google/genai' as the official SDK.
+2. Regional Endpoint: Set location strictly to 'europe-west3' (Frankfurt) for GDPR compliance.
+3. Dynamic Model Routing:
+   - All dynamic AI tasks, UI coding, assistant calls, video classrooms, and complex reasoning: strictly 'gemini-3.7-flash'.
+4. Security: Load credentials strictly from process.env.GEMINI_API_KEY on the server side (.env.local). Never expose keys to client-side browser bundles.

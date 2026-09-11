@@ -1,0 +1,3 @@
+src/components/GermanLanguagePage.tsx(1,10): error TS6133: 'BookOpen' is declared but its value is never read.
+src/components/GermanLanguagePage.tsx(1,25): error TS6133: 'GraduationCap' is declared but its value is never read.
+src/components/GermanLanguagePage.tsx(1,40): error TS6133: 'MessagesSquare' is declared but its value is never read.
