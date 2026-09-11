@@ -4,6 +4,7 @@ import {
   Building, UserPlus, Maximize2, Minimize2, Activity, Settings, LogOut, Globe, Lock, Unlock, Award, Briefcase, GraduationCap, Plane, FileText, Key, ShieldCheck, DollarSign, Megaphone, Ticket, Building2, Trophy, Bot, Gift
 } from 'lucide-react';
 import { getInquiries, getVisitorLogs, getVisitorStats, Inquiry } from '../lib/db';
+import { apiClient } from '../services/apiClient';
 import FinanceCommissionHub from '../components/admin/FinanceCommissionHub';
 import HRConsultantHub from '../components/admin/HRConsultantHub';
 import MarketingStudioHub from '../components/admin/MarketingStudioHub';
@@ -33,6 +34,34 @@ interface VisitorStatType {
 }
 
 export default function AdminPortal() {
+  // Authentication Guard for Staff/Operations Team
+  const [isAuthenticatedTeam, setIsAuthenticatedTeam] = useState<boolean>(() => {
+    const authRole = localStorage.getItem('ilas_auth_role');
+    return authRole === 'team';
+  });
+  const [userName, setUserName] = useState<string>(() => localStorage.getItem('ilas_user_name') || 'Staff Member');
+
+  useEffect(() => {
+    const handleAuthCheck = () => {
+      const authRole = localStorage.getItem('ilas_auth_role');
+      setIsAuthenticatedTeam(authRole === 'team');
+      setUserName(localStorage.getItem('ilas_user_name') || 'Staff Member');
+    };
+    window.addEventListener('ilas-auth-state-changed', handleAuthCheck);
+    return () => window.removeEventListener('ilas-auth-state-changed', handleAuthCheck);
+  }, []);
+
+  const handleLogout = () => {
+    apiClient.auth.logout();
+    localStorage.removeItem('ilas_auth_role');
+    localStorage.removeItem('ilas_team_role');
+    localStorage.removeItem('ilas_team_scope');
+    localStorage.removeItem('ilas_user_name');
+    window.dispatchEvent(new CustomEvent('ilas-auth-state-changed'));
+    window.dispatchEvent(new CustomEvent('ilas-team-role-changed'));
+    window.location.hash = '#home';
+  };
+
   const [role, setRole] = useState<string>('Super Admin');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -156,6 +185,41 @@ export default function AdminPortal() {
     ? inquiries 
     : inquiries.filter(item => item.category === activeCategoryFilter);
 
+  if (!isAuthenticatedTeam) {
+    return (
+      <div className="min-h-[85vh] flex items-center justify-center py-16 px-4 bg-slate-900 text-slate-100">
+        <div className="max-w-md w-full bg-slate-800/90 rounded-3xl p-8 border border-slate-700/80 shadow-2xl text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
+            <Shield className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 text-xs font-bold border border-amber-500/20">
+              Staff & Operations Security Gate
+            </div>
+            <h2 className="text-xl font-black text-white">Staff Authentication Required</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              The Enterprise Command Center is restricted to authorized operations, counselors, and administrative staff. Please sign in with your staff credentials.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col gap-2.5">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-portal-login', { detail: { tab: 'signin', role: 'team' } }))}
+              className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/25 cursor-pointer"
+            >
+              <Key className="w-4 h-4" /> Sign In as Staff / Operations
+            </button>
+            <button
+              onClick={() => { window.location.hash = '#home'; }}
+              className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-xl transition cursor-pointer"
+            >
+              Return to Public Website
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen font-sans pb-20 transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'}`}>
       
@@ -165,7 +229,7 @@ export default function AdminPortal() {
           <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm">ILA</div>
           <div>
             <span className="font-black tracking-tight text-sm block">ENTERPRISE COMMAND CENTER</span>
-            <span className="text-[10px] text-slate-500 font-bold">Active Role: <span className="text-brand-600 uppercase">{role}</span></span>
+            <span className="text-[10px] text-slate-500 font-bold">Active Role: <span className="text-brand-600 uppercase">{role}</span> ({userName})</span>
           </div>
         </div>
 
@@ -200,7 +264,7 @@ export default function AdminPortal() {
             <Globe className="w-3.5 h-3.5" /> Website
           </button>
 
-          <button onClick={() => { window.location.hash = '#home'; setTimeout(() => { window.dispatchEvent(new CustomEvent('open-portal-login')); }, 200); }} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer">
+          <button onClick={handleLogout} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer" title="Sign out of Enterprise Command Center">
             <LogOut className="w-3.5 h-3.5" /> Logout
           </button>
         </div>
