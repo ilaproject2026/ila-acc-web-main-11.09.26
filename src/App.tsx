@@ -85,7 +85,7 @@ function App() {
           }
         }
         window.scrollTo(0, 0)
-      } else if (hash === '#student-dashboard') {
+      } else if (hash === '#student-dashboard' || hash.startsWith('#student-dashboard?') || hash.startsWith('#student-dashboard#')) {
         setCurrentPage('student-dashboard')
         window.scrollTo(0, 0)
       } else if (hash === '#admin-portal' || hash === '#admin-dashboard' || hash === '#erp-portal') {

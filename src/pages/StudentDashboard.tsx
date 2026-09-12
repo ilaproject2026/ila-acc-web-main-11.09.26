@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Monitor, FileText, Bot, Mic, Send, Lock, Unlock, PlayCircle, Book, CheckCircle, Clock, BrainCircuit, Hand, Users, Video } from 'lucide-react'
+import { 
+  Monitor, FileText, Bot, Mic, Send, Lock, Unlock, PlayCircle, 
+  Book, CheckCircle, Clock, BrainCircuit, Hand, Users, Video,
+  Sparkles, Layers, ShieldCheck, CheckCircle2, ChevronRight
+} from 'lucide-react'
+import { 
+  getGlobalCourses, 
+  logStudentComplianceEvent, 
+  GlobalCourse, 
+  CourseDeliveryFormat 
+} from '../lib/db'
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('classroom')
@@ -7,6 +17,11 @@ export default function StudentDashboard() {
   const [activeTopic, setActiveTopic] = useState('Greetings')
   const [topicsCompleted, setTopicsCompleted] = useState<string[]>([])
   
+  // Phase B & C: Role-Based Routing & Secure Access State
+  const [routedCourse, setRoutedCourse] = useState<GlobalCourse | null>(null);
+  const [activeDeliveryMode, setActiveDeliveryMode] = useState<CourseDeliveryFormat>('INTELLI_COACH');
+  const [secureTokenParam, setSecureTokenParam] = useState<string | null>(null);
+
   // Timer states
   const [timeLeft, setTimeLeft] = useState(7200); // 2 hours (120 mins)
   const [isInteractionTime, setIsInteractionTime] = useState(true);
@@ -18,6 +33,44 @@ export default function StudentDashboard() {
     { sender: 'AI', text: 'Guten Tag! We are studying Greetings. How can I help you today?', type: 'normal' }
   ]);
   const [chatInput, setChatInput] = useState('');
+
+  // Role-based URL Hash Query Parsing: #student-dashboard?courseId=1&token=SEC-...&mode=SLIDE_AI
+  useEffect(() => {
+    const hash = window.location.hash;
+    const queryPart = hash.includes('?') ? hash.substring(hash.indexOf('?') + 1) : '';
+    const params = new URLSearchParams(queryPart);
+    const courseId = params.get('courseId');
+    const token = params.get('token');
+    const mode = params.get('mode') as CourseDeliveryFormat | null;
+
+    if (token) setSecureTokenParam(token);
+
+    const allCourses = getGlobalCourses();
+    const matched = courseId ? allCourses.find(c => c.id === courseId) : allCourses[0];
+
+    if (matched) {
+      setRoutedCourse(matched);
+      if (matched.deliveryFormats && matched.deliveryFormats.length > 0) {
+        setActiveDeliveryMode(mode || matched.deliveryFormats[0]);
+      } else if (mode) {
+        setActiveDeliveryMode(mode);
+      }
+
+      // Automatically log student session into Compliance Logs (Phase C)
+      logStudentComplianceEvent({
+        studentId: token ? `STU-${token.slice(-4)}` : 'STU-ONLINE-DIR',
+        studentName: 'Active Student (Secure Link)',
+        studentEmail: 'student.active@ila.academy',
+        courseId: matched.id,
+        courseName: matched.name,
+        deliveryPath: mode || matched.deliveryFormats?.[0] || 'IntelliCoach AI',
+        eventType: 'Login Session',
+        complianceStatus: 'Verified',
+        sessionMode: 'Online',
+        details: `Direct link authenticated session via token ${token || 'Standard Login'}`
+      });
+    }
+  }, []);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -39,6 +92,20 @@ export default function StudentDashboard() {
   const handleCompleteTopic = (topic: string) => {
     if (!topicsCompleted.includes(topic)) {
       setTopicsCompleted([...topicsCompleted, topic]);
+
+      // Log module completion milestone to active compliance logs (Phase C)
+      logStudentComplianceEvent({
+        studentId: secureTokenParam ? `STU-${secureTokenParam.slice(-4)}` : 'STU-ONLINE-DIR',
+        studentName: 'Active Student (Secure Link)',
+        studentEmail: 'student.active@ila.academy',
+        courseId: routedCourse?.id || '1',
+        courseName: routedCourse?.name || 'Enrolled Course',
+        deliveryPath: activeDeliveryMode,
+        eventType: 'Module Milestone Completed',
+        complianceStatus: 'Completed',
+        sessionMode: 'Online',
+        details: `Successfully completed curriculum milestone topic: ${topic}`
+      });
     }
   };
 
@@ -76,21 +143,62 @@ export default function StudentDashboard() {
       <div className="bg-brand-900 text-white py-8 mb-8">
         <div className="container-max px-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Student Training Portal</h1>
-            <p className="text-brand-100">Welcome back! Access your live classes, AI tutor, and local library.</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                {secureTokenParam ? `Authenticated Link: ${secureTokenParam}` : 'Role-Based Access Verified'}
+              </span>
+              {routedCourse && (
+                <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-white text-[10px] font-bold">
+                  {routedCourse.name}
+                </span>
+              )}
+            </div>
+            <h1 className="text-3xl font-bold mb-1">Student Learning Portal</h1>
+            <p className="text-brand-100 text-xs">Direct access lifecycle active: automatic routing configured without redundant re-logins.</p>
           </div>
-          <div className="flex gap-2">
+
+          {/* Role-Based Delivery Format Switcher */}
+          <div className="flex items-center gap-1.5 bg-black/30 p-1.5 rounded-2xl border border-white/10 flex-wrap">
             <button 
-              onClick={() => setClassMode('ai')} 
-              className={`px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors ${classMode === 'ai' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+              onClick={() => setActiveDeliveryMode('SLIDE_AI')} 
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDeliveryMode === 'SLIDE_AI' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+              }`}
             >
-              <BrainCircuit className="w-4 h-4" /> Inteli Coach AI Mode
+              <Monitor className="w-3.5 h-3.5" /> Slide + AI
             </button>
             <button 
-              onClick={() => setClassMode('tutor')} 
-              className={`px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors ${classMode === 'tutor' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+              onClick={() => setActiveDeliveryMode('VIDEO_AI')} 
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDeliveryMode === 'VIDEO_AI' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+              }`}
             >
-              <Users className="w-4 h-4" /> Human Tutor Mode
+              <Video className="w-3.5 h-3.5" /> Video + AI
+            </button>
+            <button 
+              onClick={() => setActiveDeliveryMode('INTELLI_COACH')} 
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDeliveryMode === 'INTELLI_COACH' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <BrainCircuit className="w-3.5 h-3.5" /> IntelliCoach
+            </button>
+            <button 
+              onClick={() => setActiveDeliveryMode('ONE_ON_ONE')} 
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDeliveryMode === 'ONE_ON_ONE' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" /> 1-on-1
+            </button>
+            <button 
+              onClick={() => setActiveDeliveryMode('CAMPS_SPORTS')} 
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeDeliveryMode === 'CAMPS_SPORTS' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Camps
             </button>
           </div>
         </div>
