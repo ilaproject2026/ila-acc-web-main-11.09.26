@@ -1,28 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plane, Globe, Building2, BookOpen, Plus, 
-  Search, Filter, CheckCircle2, ShieldCheck, 
-  Lock, Unlock, Eye, Edit3, Trash2, X, Check, 
-  Sparkles, Award, Users, Radio, Megaphone, 
+import {
+  Plane, Globe, Building2, BookOpen, Plus,
+  Search, Filter, CheckCircle2, ShieldCheck,
+  Lock, Unlock, Eye, Edit3, Trash2, X, Check,
+  Sparkles, Award, Users, Radio, Megaphone,
   FileText, ArrowRight, Star, RefreshCw, Clock, UserCheck
 } from 'lucide-react';
-import { 
-  CountryItem, 
-  CollegeItem, 
-  AbroadCourseItem, 
+import {
+  CountryItem,
+  CollegeItem,
+  AbroadCourseItem,
   AbroadApplicationItem,
   DocumentChecklistItem,
   ConsultantATSTask,
-  getAbroadCountries, 
-  saveAbroadCountry, 
+  getAbroadCountries,
+  saveAbroadCountry,
   deleteAbroadCountry,
-  getAbroadColleges, 
-  saveAbroadCollege, 
+  getAbroadColleges,
+  saveAbroadCollege,
   deleteAbroadCollege,
-  getAbroadCourses, 
-  saveAbroadCourse, 
+  getAbroadCourses,
+  saveAbroadCourse,
   deleteAbroadCourse,
-  getAbroadApplications, 
+  getAbroadApplications,
   saveAbroadApplication,
   toggleCollegePrivacyReveal,
   matchStudentAbroadProfile,
@@ -38,6 +38,7 @@ import { HubHODView } from './common/HubHODView';
 import { HubAutoTriggerView } from './common/HubAutoTriggerView';
 import { HubSocialPromoView } from './common/HubSocialPromoView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
+import { HubSubNavBar, HubNavItem } from './common/HubSubNavBar';
 
 export const StudyAbroadHub: React.FC = () => {
   // Main Sub-Nav Tab
@@ -195,7 +196,7 @@ export const StudyAbroadHub: React.FC = () => {
     const task = atsTasks.find(t => t.id === taskId);
     if (!task) return;
 
-    const updatedDocs = task.uploadedDocuments.map(d => 
+    const updatedDocs = task.uploadedDocuments.map(d =>
       d.checklistId === checklistId ? { ...d, verified: !d.verified } : d
     );
 
@@ -466,9 +467,20 @@ export const StudyAbroadHub: React.FC = () => {
     setShowMatchModal(true);
   };
 
+  const navItems: HubNavItem[] = [
+    { id: 'directory', label: 'Countries & Colleges', icon: Building2, badge: colleges.length },
+    { id: 'applications', label: 'Applications & Privacy', icon: ShieldCheck, badge: applications.length },
+    { id: 'consultant_ats', label: 'Consultant ATS & AI', icon: Sparkles, badge: atsTasks.length },
+    { id: 'checklists', label: 'Document Checklists', icon: FileText, badge: checklists.length },
+    { id: 'hod', label: 'HOD Console', icon: Award },
+    { id: 'auto_trigger', label: 'Comm Triggers', icon: Radio },
+    { id: 'social_promo', label: 'Social Promo', icon: Megaphone },
+    { id: 'intake_tracking', label: 'Intake Desk', icon: Users },
+  ];
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      
+    <div className="flex flex-col w-full h-full min-h-[calc(100vh-12rem)] bg-slate-50 relative rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700 text-xs font-bold animate-in slide-in-from-bottom">
@@ -477,776 +489,671 @@ export const StudyAbroadHub: React.FC = () => {
         </div>
       )}
 
-      {/* 1. EXECUTIVE HEADER BANNER */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-blue-900/60 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1 rounded-full">
-                <Plane className="w-3.5 h-3.5" />
-                Study Abroad Hub
-              </span>
-              <span className="text-[10px] font-bold bg-white/10 text-slate-300 px-3 py-1 rounded-full border border-white/10">
-                Country-College CRUD • Student Privacy Shield • AI Match Engine
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Study Abroad Hub &amp; Global Placement
-            </h1>
-            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Manage international university contracts, tuition terms, and admission criteria. Evaluate student profiles with privacy protection (masking college identities until admin approval).
-            </p>
-          </div>
+      {/* 1. SUB-NAVBAR: FULLY RESPONSIVE, SCROLLABLE & WRAP-ENABLED */}
+      <HubSubNavBar
+        items={navItems}
+        activeTab={activeTab}
+        onTabChange={(id:any) => setActiveTab(id as any)}
+        activeColorClass="bg-blue-600"
+      />
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              onClick={() => handleOpenCollegeModal()}
-              className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" /> Add College
-            </button>
-            <button
-              onClick={() => handleOpenCourseModal()}
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-1.5 cursor-pointer"
-            >
-              <BookOpen className="w-4 h-4 text-amber-300" /> + Add Course
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Dynamic Content Area */}
+      <div className="flex-1 w-full bg-slate-50 overflow-y-auto no-scrollbar relative p-4 md:p-6 space-y-6">
 
-      {/* 2. UNIVERSAL SUB-NAVIGATION TABS */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('directory')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'directory'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Building2 className="w-4 h-4 text-blue-400" />
-          <span>Countries &amp; Colleges (CRUD)</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-black">
-            {colleges.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('applications')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'applications'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Applications &amp; Privacy Match</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black">
-            {applications.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('consultant_ats')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'consultant_ats'
-              ? 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-md shadow-brand-600/20'
-              : 'bg-white hover:bg-slate-100 text-brand-700 border border-brand-200 font-black'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span>Consultant ATS &amp; Hybrid AI</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white font-black">
-            {atsTasks.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('checklists')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'checklists'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <FileText className="w-4 h-4 text-indigo-400" />
-          <span>Document Checklists (CRUD)</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-black">
-            {checklists.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('hod')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'hod'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Award className="w-4 h-4 text-amber-400" />
-          <span>HOD Console (Study Abroad)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('auto_trigger')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'auto_trigger'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Radio className="w-4 h-4 text-purple-400" />
-          <span>Auto-Trigger (Follow-up)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('social_promo')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'social_promo'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Megaphone className="w-4 h-4 text-brand-400" />
-          <span>Social Media Promo</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('intake_tracking')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'intake_tracking'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Users className="w-4 h-4 text-emerald-400" />
-          <span>Intake Tracking</span>
-        </button>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SUB-TAB 1: DIRECTORY (COUNTRIES, COLLEGES, COURSES) */}
-      {/* ========================================================================= */}
-      {activeTab === 'directory' && (
-        <div className="space-y-6 animate-in fade-in">
-          
-          {/* Section Switcher (Countries / Colleges / Courses) */}
-          <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setDirSection('colleges')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  dirSection === 'colleges' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Colleges &amp; Universities ({colleges.length})
-              </button>
-              <button
-                onClick={() => setDirSection('courses')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  dirSection === 'courses' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Courses &amp; Degree Programs ({courses.length})
-              </button>
-              <button
-                onClick={() => setDirSection('countries')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  dirSection === 'countries' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                Countries ({countries.length})
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {dirSection === 'colleges' && (
-                <button
-                  onClick={() => handleOpenCollegeModal()}
-                  className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-800 flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> New College
-                </button>
-              )}
-              {dirSection === 'courses' && (
-                <button
-                  onClick={() => handleOpenCourseModal()}
-                  className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-800 flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> New Course
-                </button>
-              )}
-              {dirSection === 'countries' && (
-                <button
-                  onClick={() => handleOpenCountryModal()}
-                  className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-800 flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Country
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 1. COLLEGES VIEW */}
-          {dirSection === 'colleges' && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {colleges.map(col => {
-                const country = countries.find(c => c.id === col.countryId);
-                const colCourses = courses.filter(crs => crs.collegeId === col.id);
-                return (
-                  <div key={col.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between hover:shadow-md transition-shadow">
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
-                            {country ? `${country.flag} ${country.name}` : 'Europe'}
-                          </span>
-                          <h3 className="font-bold text-slate-900 text-sm mt-1">{col.name}</h3>
-                          <div className="text-[11px] text-slate-500">{col.city} • <span className="font-semibold text-slate-700">{col.ranking}</span></div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 shrink-0">
-                          {col.type}
-                        </span>
-                      </div>
-
-                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1">
-                        <div className="font-bold text-slate-700 text-[11px]">Admission Criteria:</div>
-                        <p className="text-slate-600 text-[11px] leading-relaxed">{col.admissionCriteria}</p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Matching Terms:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {col.terms?.map((t, idx) => (
-                            <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-medium">
-                              ✓ {t}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-indigo-600 font-bold text-[11px]">
-                        {colCourses.length} Active Courses
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleOpenCollegeModal(col)}
-                          className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer"
-                          title="Edit"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCollege(col.id)}
-                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* 2. COURSES VIEW */}
-          {dirSection === 'courses' && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {courses.map(crs => {
-                const country = countries.find(c => c.id === crs.countryId);
-                return (
-                  <div key={crs.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-[10px] font-black uppercase text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full">
-                            {crs.degree} • {crs.duration}
-                          </span>
-                          <h3 className="font-bold text-slate-900 text-sm mt-1">{crs.courseName}</h3>
-                          <div className="text-[11px] text-slate-500 font-medium">{crs.collegeName}</div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 shrink-0">
-                          {crs.language}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-1.5 text-center p-2.5 bg-slate-50 rounded-xl text-[10px]">
-                        <div>
-                          <div className="text-slate-400 font-bold">MIN CGPA</div>
-                          <div className="font-black text-slate-900">{crs.minCGPA}</div>
-                        </div>
-                        <div>
-                          <div className="text-slate-400 font-bold">MIN IELTS</div>
-                          <div className="font-black text-slate-900">{crs.minIELTS}</div>
-                        </div>
-                        <div>
-                          <div className="text-slate-400 font-bold">GERMAN</div>
-                          <div className="font-black text-slate-900">{crs.minGermanLevel}</div>
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-slate-600 bg-emerald-50/60 p-2 rounded-lg border border-emerald-100 font-bold text-emerald-900">
-                        Tuition: {crs.tuitionPerYear}
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-[10px] text-slate-400">Intakes: {crs.intakeSeason?.join(', ')}</span>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleOpenCourseModal(crs)} className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg cursor-pointer">
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => handleDeleteCourse(crs.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded-lg cursor-pointer">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* 3. COUNTRIES VIEW */}
-          {dirSection === 'countries' && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {countries.map(c => (
-                <div key={c.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-3xl">{c.flag}</span>
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        {c.status}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-slate-900 text-base">{c.name} ({c.code})</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed">{c.description}</p>
-                    <div className="text-[11px] text-slate-700 font-semibold space-y-0.5 pt-1 border-t">
-                      <div>Visa: <span className="text-slate-900">{c.visaType}</span></div>
-                      <div>Tuition: <span className="text-emerald-700 font-bold">{c.avgTuition}</span></div>
-                      <div>Living: <span className="text-slate-900">{c.livingCost}</span></div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t flex justify-end gap-1">
-                    <button onClick={() => handleOpenCountryModal(c)} className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg cursor-pointer">
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDeleteCountry(c.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded-lg cursor-pointer">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SUB-TAB 2: APPLICATIONS & PRIVACY MATCHING ENGINE */}
-      {/* ========================================================================= */}
-      {activeTab === 'applications' && (
-        <div className="space-y-6 animate-in fade-in">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
-              <div>
-                <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                  Student Privacy &amp; University Matching Gate
+        {/* EXECUTIVE HEADER BANNER */}
+        <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-blue-900/60 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-blue-500/20 text-blue-300 border border-blue-500/30 px-3 py-1 rounded-full">
+                  <Plane className="w-3.5 h-3.5" />
+                  Study Abroad Hub
                 </span>
-                <h3 className="text-lg font-black text-slate-900 mt-1">Study Abroad Applications &amp; Dossiers</h3>
-                <p className="text-xs text-slate-500">
-                  Privacy Rule: Student sees matched degree &amp; curriculum criteria only. University names remain masked until admin grants approval.
-                </p>
+                <span className="text-[10px] font-bold bg-white/10 text-slate-300 px-3 py-1 rounded-full border border-white/10">
+                  Country-College CRUD • Student Privacy Shield • AI Match Engine
+                </span>
               </div>
-
-              <div className="text-xs text-slate-500 font-bold">
-                {applications.length} Total Applicants
-              </div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                Study Abroad Hub &amp; Global Placement
+              </h1>
+              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                Manage international university contracts, tuition terms, and admission criteria. Evaluate student profiles with privacy protection (masking college identities until admin approval).
+              </p>
             </div>
 
-            <div className="space-y-3">
-              {applications.map((app) => (
-                <div key={app.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 hover:bg-slate-100/70 transition-colors">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{app.studentName}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">
-                          Target: {app.targetCountryName} ({app.targetDegree})
-                        </span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase ${
-                          app.status === 'College Approved' ? 'bg-emerald-100 text-emerald-800' :
-                          app.status === 'Matched' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {app.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {app.studentEmail} • {app.studentPhone} • Field: <strong className="text-slate-700">{app.preferredField}</strong>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => handleRunMatch(app)}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer shadow-xs"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" /> AI Profile Match
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleReveal(app.id, app.isCollegeRevealed)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
-                          app.isCollegeRevealed
-                            ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                            : 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'
-                        }`}
-                        title={app.isCollegeRevealed ? 'Hide College Name' : 'Approve and Reveal College Name to Student'}
-                      >
-                        {app.isCollegeRevealed ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5 text-amber-300" />}
-                        {app.isCollegeRevealed ? 'College Revealed ✓' : 'Reveal College (Admin Gate)'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Profile Parameters & Matching Info */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] p-3 bg-white rounded-xl border border-slate-200/80">
-                    <div>
-                      <span className="text-slate-400 block font-bold">ACADEMIC CGPA</span>
-                      <strong className="text-slate-900 text-xs">{app.cgpa} / 10.0</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-bold">IELTS / TOEFL</span>
-                      <strong className="text-slate-900 text-xs">{app.ieltsScore} Band</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-bold">GERMAN PROFICIENCY</span>
-                      <strong className="text-indigo-700 text-xs">{app.germanLevel}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-bold">MATCHED UNIVERSITY</span>
-                      <strong className={app.isCollegeRevealed ? 'text-emerald-700 text-xs' : 'text-slate-400 font-mono text-xs'}>
-                        {app.isCollegeRevealed ? app.assignedCollegeName : '🔒 [Protected / Hidden]'}
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block font-bold">MATCH FIT SCORE</span>
-                      <strong className="text-emerald-600 text-xs">{app.matchScore || 85}% Compatible</strong>
-                    </div>
-                  </div>
-
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SUB-TAB: CONSULTANT ATS (APPLICATION TRACKING SYSTEM & HYBRID AI LOGS) */}
-      {/* ========================================================================= */}
-      {activeTab === 'consultant_ats' && (
-        <div className="space-y-6 animate-in fade-in">
-          
-          {/* Header Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">TOTAL ATS LEADS</span>
-              <div className="text-2xl font-black text-slate-900">{atsTasks.length}</div>
-              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-1">
-                <CheckCircle2 className="w-3 h-3" /> Auto-Bound to Accounts
-              </span>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">DOC VERIFICATION</span>
-              <div className="text-2xl font-black text-amber-600">
-                {atsTasks.filter(t => t.stage === 'Document Verification' || t.stage === 'Lead / Intake').length}
-              </div>
-              <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mt-1">
-                <Clock className="w-3 h-3" /> Transcripts Pending Review
-              </span>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">UNIVERSITY REVIEW</span>
-              <div className="text-2xl font-black text-blue-600">
-                {atsTasks.filter(t => t.stage === 'University Review' || t.stage === 'Interview Scheduled').length}
-              </div>
-              <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1 mt-1">
-                <Building2 className="w-3 h-3" /> Uni-Assist &amp; Direct Dossiers
-              </span>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">ENROLLED / VISA</span>
-              <div className="text-2xl font-black text-emerald-600">
-                {atsTasks.filter(t => t.stage === 'Enrolled' || t.stage === 'Visa Preparation').length}
-              </div>
-              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-1">
-                <ShieldCheck className="w-3 h-3" /> APS &amp; Embassy Clearances
-              </span>
-            </div>
-          </div>
-
-          {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-              {['All', 'Lead / Intake', 'Document Verification', 'University Review', 'Interview Scheduled', 'Visa Preparation', 'Enrolled'].map(stg => (
-                <button
-                  key={stg}
-                  onClick={() => setAtsStageFilter(stg)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    atsStageFilter === stg
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {stg}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative min-w-[240px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Search candidate, email, course..."
-                value={atsSearchTerm}
-                onChange={(e) => setAtsSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none focus:border-brand-500 font-medium"
-              />
-            </div>
-          </div>
-
-          {/* Tasks List */}
-          <div className="space-y-3">
-            {atsTasks
-              .filter(task => {
-                const matchStage = atsStageFilter === 'All' || task.stage === atsStageFilter;
-                const matchSearch = atsSearchTerm === '' ||
-                  task.studentName.toLowerCase().includes(atsSearchTerm.toLowerCase()) ||
-                  task.studentEmail.toLowerCase().includes(atsSearchTerm.toLowerCase()) ||
-                  task.targetCourse.toLowerCase().includes(atsSearchTerm.toLowerCase());
-                return matchStage && matchSearch;
-              })
-              .map((task) => {
-                const verifiedDocsCount = task.uploadedDocuments.filter(d => d.verified).length;
-                const totalDocsCount = task.uploadedDocuments.length;
-
-                return (
-                  <div
-                    key={task.id}
-                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-brand-400 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[10px] font-black uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                          {task.id}
-                        </span>
-                        <h3 className="font-black text-slate-900 text-base">{task.studentName}</h3>
-                        <span className="text-xs text-slate-500 font-medium">({task.studentEmail} • {task.studentPhone})</span>
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-black">
-                          {task.matchScore}% Match
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-                        <span>🎯 <strong>Course:</strong> {task.targetCourse} ({task.targetCountry})</span>
-                        <span>👤 <strong>Consultant:</strong> {task.assignedConsultant}</span>
-                        <span>📄 <strong>Transcripts:</strong> {verifiedDocsCount}/{totalDocsCount} Verified</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider ${
-                        task.stage === 'Enrolled' ? 'bg-emerald-100 text-emerald-800' :
-                        task.stage === 'Visa Preparation' ? 'bg-indigo-100 text-indigo-800' :
-                        task.stage === 'University Review' ? 'bg-blue-100 text-blue-800' :
-                        task.stage === 'Document Verification' ? 'bg-amber-100 text-amber-800' :
-                        'bg-slate-100 text-slate-700'
-                      }`}>
-                        {task.stage}
-                      </span>
-
-                      <button
-                        onClick={() => setSelectedAtsTask(task)}
-                        className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-black rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300" /> View Dossier &amp; AI Logs
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SUB-TAB: STANDARD PROCEDURE CHECKLIST (CRUD) */}
-      {/* ========================================================================= */}
-      {activeTab === 'checklists' && (
-        <div className="space-y-6 animate-in fade-in">
-          
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-black text-slate-900">Standard Procedure Document Checklists</h2>
-              <p className="text-xs text-slate-500">Define required transcripts and certificates per target destination country and course track.</p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <select
-                value={chkCountryFilter}
-                onChange={(e) => setChkCountryFilter(e.target.value)}
-                className="px-3 py-2 border rounded-xl text-xs font-bold outline-none"
-              >
-                <option value="All">All Countries</option>
-                <option value="Germany">Germany</option>
-                <option value="United Kingdom">United Kingdom</option>
-                <option value="Canada">Canada</option>
-                <option value="Australia">Australia</option>
-              </select>
-
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
               <button
-                onClick={() => handleOpenChecklistModal()}
-                className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-black rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
+                onClick={() => handleOpenCollegeModal()}
+                className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
               >
-                <Plus className="w-4 h-4" /> Add Requirement
+                <Plus className="w-4 h-4" /> Add College
+              </button>
+              <button
+                onClick={() => handleOpenCourseModal()}
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-1.5 cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4 text-amber-300" /> + Add Course
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Checklist Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-b">
-                <tr>
-                  <th className="p-3.5">Country / Flag</th>
-                  <th className="p-3.5">Course Track</th>
-                  <th className="p-3.5">Document Name &amp; Description</th>
-                  <th className="p-3.5">Mandatory</th>
-                  <th className="p-3.5">Formats / Max Size</th>
-                  <th className="p-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {checklists
-                  .filter(c => chkCountryFilter === 'All' || c.country.toLowerCase() === chkCountryFilter.toLowerCase())
-                  .map((chk) => (
-                    <tr key={chk.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-3.5 font-bold text-slate-900">
-                        {chk.country === 'Germany' ? '🇩🇪 Germany' :
-                         chk.country === 'United Kingdom' ? '🇬🇧 United Kingdom' :
-                         chk.country === 'Canada' ? '🇨🇦 Canada' :
-                         chk.country === 'Australia' ? '🇦🇺 Australia' : '🌍 ' + chk.country}
-                      </td>
-                      <td className="p-3.5">
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-bold text-[10px]">
-                          {chk.courseTrack}
+        {/* ========================================================================= */}
+        {/* SUB-TAB 1: DIRECTORY (COUNTRIES, COLLEGES, COURSES) */}
+        {/* ========================================================================= */}
+        {activeTab === 'directory' && (
+          <div className="space-y-6 animate-in fade-in">
+
+            {/* Section Switcher (Countries / Colleges / Courses) */}
+            <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setDirSection('colleges')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${dirSection === 'colleges' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                >
+                  Colleges &amp; Universities ({colleges.length})
+                </button>
+                <button
+                  onClick={() => setDirSection('courses')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${dirSection === 'courses' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                >
+                  Courses &amp; Degree Programs ({courses.length})
+                </button>
+                <button
+                  onClick={() => setDirSection('countries')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${dirSection === 'countries' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                >
+                  Countries ({countries.length})
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {dirSection === 'colleges' && (
+                  <button
+                    onClick={() => handleOpenCollegeModal()}
+                    className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-800 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> New College
+                  </button>
+                )}
+                {dirSection === 'courses' && (
+                  <button
+                    onClick={() => handleOpenCourseModal()}
+                    className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-800 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> New Course
+                  </button>
+                )}
+                {dirSection === 'countries' && (
+                  <button
+                    onClick={() => handleOpenCountryModal()}
+                    className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-slate-800 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Country
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 1. COLLEGES VIEW */}
+            {dirSection === 'colleges' && (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {colleges.map(col => {
+                  const country = countries.find(c => c.id === col.countryId);
+                  const colCourses = courses.filter(crs => crs.collegeId === col.id);
+                  return (
+                    <div key={col.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
+                              {country ? `${country.flag} ${country.name}` : 'Europe'}
+                            </span>
+                            <h3 className="font-bold text-slate-900 text-sm mt-1">{col.name}</h3>
+                            <div className="text-[11px] text-slate-500">{col.city} • <span className="font-semibold text-slate-700">{col.ranking}</span></div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 shrink-0">
+                            {col.type}
+                          </span>
+                        </div>
+
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs space-y-1">
+                          <div className="font-bold text-slate-700 text-[11px]">Admission Criteria:</div>
+                          <p className="text-slate-600 text-[11px] leading-relaxed">{col.admissionCriteria}</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Matching Terms:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {col.terms?.map((t, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-medium">
+                                ✓ {t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-indigo-600 font-bold text-[11px]">
+                          {colCourses.length} Active Courses
                         </span>
-                      </td>
-                      <td className="p-3.5 space-y-0.5">
-                        <div className="font-bold text-slate-900">{chk.docName}</div>
-                        <div className="text-[11px] text-slate-500">{chk.description}</div>
-                      </td>
-                      <td className="p-3.5">
-                        {chk.isRequired ? (
-                          <span className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded font-black text-[10px]">
-                            Required
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold text-[10px]">
-                            Optional
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3.5 text-slate-600 font-medium">
-                        {chk.acceptedFormats} • Max {chk.maxSizeMB}MB
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center gap-1">
                           <button
-                            onClick={() => handleOpenChecklistModal(chk)}
-                            className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg cursor-pointer"
-                            title="Edit Requirement"
+                            onClick={() => handleOpenCollegeModal(col)}
+                            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer"
+                            title="Edit"
                           >
-                            <Edit3 className="w-4 h-4" />
+                            <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteChecklist(chk.id)}
-                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
-                            title="Delete Requirement"
+                            onClick={() => handleDeleteCollege(col.id)}
+                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
+                            title="Delete"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 2. COURSES VIEW */}
+            {dirSection === 'courses' && (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {courses.map(crs => {
+                  const country = countries.find(c => c.id === crs.countryId);
+                  return (
+                    <div key={crs.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-[10px] font-black uppercase text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full">
+                              {crs.degree} • {crs.duration}
+                            </span>
+                            <h3 className="font-bold text-slate-900 text-sm mt-1">{crs.courseName}</h3>
+                            <div className="text-[11px] text-slate-500 font-medium">{crs.collegeName}</div>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 shrink-0">
+                            {crs.language}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-1.5 text-center p-2.5 bg-slate-50 rounded-xl text-[10px]">
+                          <div>
+                            <div className="text-slate-400 font-bold">MIN CGPA</div>
+                            <div className="font-black text-slate-900">{crs.minCGPA}</div>
+                          </div>
+                          <div>
+                            <div className="text-slate-400 font-bold">MIN IELTS</div>
+                            <div className="font-black text-slate-900">{crs.minIELTS}</div>
+                          </div>
+                          <div>
+                            <div className="text-slate-400 font-bold">GERMAN</div>
+                            <div className="font-black text-slate-900">{crs.minGermanLevel}</div>
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-slate-600 bg-emerald-50/60 p-2 rounded-lg border border-emerald-100 font-bold text-emerald-900">
+                          Tuition: {crs.tuitionPerYear}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-[10px] text-slate-400">Intakes: {crs.intakeSeason?.join(', ')}</span>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleOpenCourseModal(crs)} className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg cursor-pointer">
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleDeleteCourse(crs.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded-lg cursor-pointer">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 3. COUNTRIES VIEW */}
+            {dirSection === 'countries' && (
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {countries.map(c => (
+                  <div key={c.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-3xl">{c.flag}</span>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          {c.status}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-slate-900 text-base">{c.name} ({c.code})</h3>
+                      <p className="text-xs text-slate-500 leading-relaxed">{c.description}</p>
+                      <div className="text-[11px] text-slate-700 font-semibold space-y-0.5 pt-1 border-t">
+                        <div>Visa: <span className="text-slate-900">{c.visaType}</span></div>
+                        <div>Tuition: <span className="text-emerald-700 font-bold">{c.avgTuition}</span></div>
+                        <div>Living: <span className="text-slate-900">{c.livingCost}</span></div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t flex justify-end gap-1">
+                      <button onClick={() => handleOpenCountryModal(c)} className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg cursor-pointer">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDeleteCountry(c.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded-lg cursor-pointer">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
           </div>
+        )}
 
-        </div>
-      )}
+        {/* ========================================================================= */}
+        {/* SUB-TAB 2: APPLICATIONS & PRIVACY MATCHING ENGINE */}
+        {/* ========================================================================= */}
+        {activeTab === 'applications' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                    Student Privacy &amp; University Matching Gate
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">Study Abroad Applications &amp; Dossiers</h3>
+                  <p className="text-xs text-slate-500">
+                    Privacy Rule: Student sees matched degree &amp; curriculum criteria only. University names remain masked until admin grants approval.
+                  </p>
+                </div>
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 3: HOD CONSOLE */}
-      {/* ========================================================================= */}
-      {activeTab === 'hod' && (
-        <HubHODView 
-          departmentName="Study Abroad & University Placement"
-          departmentTagline="International University Agreements, APS Document Clearance Pipelines & Visa Embassy Roster"
-          defaultAgendas={[
-            { id: 'ab-1', title: 'Expand TU9 & UAS Direct Admission Pathways for Winter 2026', targetDate: '2026-09-30', priority: 'High', status: 'In Progress' },
-            { id: 'ab-2', title: 'APS Fast-Track Verification Queue Liaison in New Delhi', targetDate: '2026-10-10', priority: 'Critical', status: 'In Progress' },
-            { id: 'ab-3', title: 'Integrate Sperrkonto (Blocked Account €11,900) Auto-Sync API', targetDate: '2026-11-15', priority: 'Medium', status: 'Pending Review' }
-          ]}
-        />
-      )}
+                <div className="text-xs text-slate-500 font-bold">
+                  {applications.length} Total Applicants
+                </div>
+              </div>
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 4: AUTO-TRIGGER FOLLOW-UP */}
-      {/* ========================================================================= */}
-      {activeTab === 'auto_trigger' && (
-        <HubAutoTriggerView 
-          departmentName="Study Abroad" 
-          defaultEventTypes={[
-            { key: 'document_pending', label: 'Missing APS / SOP / Transcripts' },
-            { key: 'incomplete_enrollment', label: 'Incomplete University Application' },
-            { key: 'pending_payment', label: 'Blocked Account Setup Pending' },
-            { key: 'profile_dropoff', label: 'Visa Embassy Mock Exam Idle' }
-          ]}
-        />
-      )}
+              <div className="space-y-3">
+                {applications.map((app) => (
+                  <div key={app.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 hover:bg-slate-100/70 transition-colors">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm">{app.studentName}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">
+                            Target: {app.targetCountryName} ({app.targetDegree})
+                          </span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase ${app.status === 'College Approved' ? 'bg-emerald-100 text-emerald-800' :
+                              app.status === 'Matched' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                            {app.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {app.studentEmail} • {app.studentPhone} • Field: <strong className="text-slate-700">{app.preferredField}</strong>
+                        </div>
+                      </div>
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 5: SOCIAL MEDIA PROMO */}
-      {/* ========================================================================= */}
-      {activeTab === 'social_promo' && (
-        <HubSocialPromoView departmentName="Study Abroad" />
-      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleRunMatch(app)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" /> AI Profile Match
+                        </button>
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 6: INTAKE TRACKING */}
-      {/* ========================================================================= */}
-      {activeTab === 'intake_tracking' && (
-        <HubIntakeTrackingView 
-          departmentName="Study Abroad" 
-          departmentTitle="Study Abroad Hub / Walk-in & Online Intake Desk" 
-        />
-      )}
+                        <button
+                          onClick={() => handleToggleReveal(app.id, app.isCollegeRevealed)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border ${app.isCollegeRevealed
+                              ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                              : 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'
+                            }`}
+                          title={app.isCollegeRevealed ? 'Hide College Name' : 'Approve and Reveal College Name to Student'}
+                        >
+                          {app.isCollegeRevealed ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5 text-amber-300" />}
+                          {app.isCollegeRevealed ? 'College Revealed ✓' : 'Reveal College (Admin Gate)'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Profile Parameters & Matching Info */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] p-3 bg-white rounded-xl border border-slate-200/80">
+                      <div>
+                        <span className="text-slate-400 block font-bold">ACADEMIC CGPA</span>
+                        <strong className="text-slate-900 text-xs">{app.cgpa} / 10.0</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-bold">IELTS / TOEFL</span>
+                        <strong className="text-slate-900 text-xs">{app.ieltsScore} Band</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-bold">GERMAN PROFICIENCY</span>
+                        <strong className="text-indigo-700 text-xs">{app.germanLevel}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-bold">MATCHED UNIVERSITY</span>
+                        <strong className={app.isCollegeRevealed ? 'text-emerald-700 text-xs' : 'text-slate-400 font-mono text-xs'}>
+                          {app.isCollegeRevealed ? app.assignedCollegeName : '🔒 [Protected / Hidden]'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-bold">MATCH FIT SCORE</span>
+                        <strong className="text-emerald-600 text-xs">{app.matchScore || 85}% Compatible</strong>
+                      </div>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB: CONSULTANT ATS (APPLICATION TRACKING SYSTEM & HYBRID AI LOGS) */}
+        {/* ========================================================================= */}
+        {activeTab === 'consultant_ats' && (
+          <div className="space-y-6 animate-in fade-in">
+
+            {/* Header Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <span className="text-xs font-bold text-slate-400 block mb-1">TOTAL ATS LEADS</span>
+                <div className="text-2xl font-black text-slate-900">{atsTasks.length}</div>
+                <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-1">
+                  <CheckCircle2 className="w-3 h-3" /> Auto-Bound to Accounts
+                </span>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <span className="text-xs font-bold text-slate-400 block mb-1">DOC VERIFICATION</span>
+                <div className="text-2xl font-black text-amber-600">
+                  {atsTasks.filter(t => t.stage === 'Document Verification' || t.stage === 'Lead / Intake').length}
+                </div>
+                <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mt-1">
+                  <Clock className="w-3 h-3" /> Transcripts Pending Review
+                </span>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <span className="text-xs font-bold text-slate-400 block mb-1">UNIVERSITY REVIEW</span>
+                <div className="text-2xl font-black text-blue-600">
+                  {atsTasks.filter(t => t.stage === 'University Review' || t.stage === 'Interview Scheduled').length}
+                </div>
+                <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1 mt-1">
+                  <Building2 className="w-3 h-3" /> Uni-Assist &amp; Direct Dossiers
+                </span>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <span className="text-xs font-bold text-slate-400 block mb-1">ENROLLED / VISA</span>
+                <div className="text-2xl font-black text-emerald-600">
+                  {atsTasks.filter(t => t.stage === 'Enrolled' || t.stage === 'Visa Preparation').length}
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 mt-1">
+                  <ShieldCheck className="w-3 h-3" /> APS &amp; Embassy Clearances
+                </span>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                {['All', 'Lead / Intake', 'Document Verification', 'University Review', 'Interview Scheduled', 'Visa Preparation', 'Enrolled'].map(stg => (
+                  <button
+                    key={stg}
+                    onClick={() => setAtsStageFilter(stg)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${atsStageFilter === stg
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                  >
+                    {stg}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative min-w-[240px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  placeholder="Search candidate, email, course..."
+                  value={atsSearchTerm}
+                  onChange={(e) => setAtsSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border rounded-xl text-xs outline-none focus:border-brand-500 font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Tasks List */}
+            <div className="space-y-3">
+              {atsTasks
+                .filter(task => {
+                  const matchStage = atsStageFilter === 'All' || task.stage === atsStageFilter;
+                  const matchSearch = atsSearchTerm === '' ||
+                    task.studentName.toLowerCase().includes(atsSearchTerm.toLowerCase()) ||
+                    task.studentEmail.toLowerCase().includes(atsSearchTerm.toLowerCase()) ||
+                    task.targetCourse.toLowerCase().includes(atsSearchTerm.toLowerCase());
+                  return matchStage && matchSearch;
+                })
+                .map((task) => {
+                  const verifiedDocsCount = task.uploadedDocuments.filter(d => d.verified).length;
+                  const totalDocsCount = task.uploadedDocuments.length;
+
+                  return (
+                    <div
+                      key={task.id}
+                      className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs hover:border-brand-400 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-[10px] font-black uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                            {task.id}
+                          </span>
+                          <h3 className="font-black text-slate-900 text-base">{task.studentName}</h3>
+                          <span className="text-xs text-slate-500 font-medium">({task.studentEmail} • {task.studentPhone})</span>
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-black">
+                            {task.matchScore}% Match
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                          <span>🎯 <strong>Course:</strong> {task.targetCourse} ({task.targetCountry})</span>
+                          <span>👤 <strong>Consultant:</strong> {task.assignedConsultant}</span>
+                          <span>📄 <strong>Transcripts:</strong> {verifiedDocsCount}/{totalDocsCount} Verified</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider ${task.stage === 'Enrolled' ? 'bg-emerald-100 text-emerald-800' :
+                            task.stage === 'Visa Preparation' ? 'bg-indigo-100 text-indigo-800' :
+                              task.stage === 'University Review' ? 'bg-blue-100 text-blue-800' :
+                                task.stage === 'Document Verification' ? 'bg-amber-100 text-amber-800' :
+                                  'bg-slate-100 text-slate-700'
+                          }`}>
+                          {task.stage}
+                        </span>
+
+                        <button
+                          onClick={() => setSelectedAtsTask(task)}
+                          className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-black rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" /> View Dossier &amp; AI Logs
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB: STANDARD PROCEDURE CHECKLIST (CRUD) */}
+        {/* ========================================================================= */}
+        {activeTab === 'checklists' && (
+          <div className="space-y-6 animate-in fade-in">
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-slate-900">Standard Procedure Document Checklists</h2>
+                <p className="text-xs text-slate-500">Define required transcripts and certificates per target destination country and course track.</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <select
+                  value={chkCountryFilter}
+                  onChange={(e) => setChkCountryFilter(e.target.value)}
+                  className="px-3 py-2 border rounded-xl text-xs font-bold outline-none"
+                >
+                  <option value="All">All Countries</option>
+                  <option value="Germany">Germany</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Australia">Australia</option>
+                </select>
+
+                <button
+                  onClick={() => handleOpenChecklistModal()}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-black rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" /> Add Requirement
+                </button>
+              </div>
+            </div>
+
+            {/* Checklist Table */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 font-bold border-b">
+                  <tr>
+                    <th className="p-3.5">Country / Flag</th>
+                    <th className="p-3.5">Course Track</th>
+                    <th className="p-3.5">Document Name &amp; Description</th>
+                    <th className="p-3.5">Mandatory</th>
+                    <th className="p-3.5">Formats / Max Size</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {checklists
+                    .filter(c => chkCountryFilter === 'All' || c.country.toLowerCase() === chkCountryFilter.toLowerCase())
+                    .map((chk) => (
+                      <tr key={chk.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3.5 font-bold text-slate-900">
+                          {chk.country === 'Germany' ? '🇩🇪 Germany' :
+                            chk.country === 'United Kingdom' ? '🇬🇧 United Kingdom' :
+                              chk.country === 'Canada' ? '🇨🇦 Canada' :
+                                chk.country === 'Australia' ? '🇦🇺 Australia' : '🌍 ' + chk.country}
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-bold text-[10px]">
+                            {chk.courseTrack}
+                          </span>
+                        </td>
+                        <td className="p-3.5 space-y-0.5">
+                          <div className="font-bold text-slate-900">{chk.docName}</div>
+                          <div className="text-[11px] text-slate-500">{chk.description}</div>
+                        </td>
+                        <td className="p-3.5">
+                          {chk.isRequired ? (
+                            <span className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded font-black text-[10px]">
+                              Required
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold text-[10px]">
+                              Optional
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5 text-slate-600 font-medium">
+                          {chk.acceptedFormats} • Max {chk.maxSizeMB}MB
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenChecklistModal(chk)}
+                              className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                              title="Edit Requirement"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteChecklist(chk.id)}
+                              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                              title="Delete Requirement"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB 3: HOD CONSOLE */}
+        {/* ========================================================================= */}
+        {activeTab === 'hod' && (
+          <HubHODView
+            departmentName="Study Abroad & University Placement"
+            departmentTagline="International University Agreements, APS Document Clearance Pipelines & Visa Embassy Roster"
+            defaultAgendas={[
+              { id: 'ab-1', title: 'Expand TU9 & UAS Direct Admission Pathways for Winter 2026', targetDate: '2026-09-30', priority: 'High', status: 'In Progress' },
+              { id: 'ab-2', title: 'APS Fast-Track Verification Queue Liaison in New Delhi', targetDate: '2026-10-10', priority: 'Critical', status: 'In Progress' },
+              { id: 'ab-3', title: 'Integrate Sperrkonto (Blocked Account €11,900) Auto-Sync API', targetDate: '2026-11-15', priority: 'Medium', status: 'Pending Review' }
+            ]}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB 4: AUTO-TRIGGER FOLLOW-UP */}
+        {/* ========================================================================= */}
+        {activeTab === 'auto_trigger' && (
+          <HubAutoTriggerView
+            departmentName="Study Abroad"
+            defaultEventTypes={[
+              { key: 'document_pending', label: 'Missing APS / SOP / Transcripts' },
+              { key: 'incomplete_enrollment', label: 'Incomplete University Application' },
+              { key: 'pending_payment', label: 'Blocked Account Setup Pending' },
+              { key: 'profile_dropoff', label: 'Visa Embassy Mock Exam Idle' }
+            ]}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB 5: SOCIAL MEDIA PROMO */}
+        {/* ========================================================================= */}
+        {activeTab === 'social_promo' && (
+          <HubSocialPromoView departmentName="Study Abroad" />
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB 6: INTAKE TRACKING */}
+        {/* ========================================================================= */}
+        {activeTab === 'intake_tracking' && (
+          <HubIntakeTrackingView
+            departmentName="Study Abroad"
+            departmentTitle="Study Abroad Hub / Walk-in & Online Intake Desk"
+          />
+        )}
+
+      </div>
 
       {/* ========================================================================= */}
       {/* MATCH SIMULATOR MODAL */}
@@ -1677,7 +1584,7 @@ export const StudyAbroadHub: React.FC = () => {
       {selectedAtsTask && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 max-h-[92vh] overflow-y-auto">
-            
+
             {/* Header */}
             <div className="border-b pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -1727,10 +1634,10 @@ export const StudyAbroadHub: React.FC = () => {
 
             {/* Main Body: 2 Columns */}
             <div className="grid lg:grid-cols-12 gap-6">
-              
+
               {/* Left Column: Documents & Follow-Up Notes */}
               <div className="lg:col-span-6 space-y-6">
-                
+
                 {/* Uploaded Documents Dossier */}
                 <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
@@ -1757,11 +1664,10 @@ export const StudyAbroadHub: React.FC = () => {
 
                           <button
                             onClick={() => handleToggleDocVerification(selectedAtsTask.id, doc.checklistId)}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
-                              doc.verified
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 shrink-0 ${doc.verified
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                                 : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
-                            }`}
+                              }`}
                           >
                             {doc.verified ? <><Check className="w-3 h-3" /> Verified</> : <><Clock className="w-3 h-3" /> Verify</>}
                           </button>
@@ -1861,11 +1767,10 @@ export const StudyAbroadHub: React.FC = () => {
                     return (
                       <div
                         key={log.id}
-                        className={`p-3.5 rounded-2xl border transition-all ${
-                          isAI
+                        className={`p-3.5 rounded-2xl border transition-all ${isAI
                             ? 'bg-brand-950/40 border-brand-800/60'
                             : 'bg-slate-950/80 border-slate-800'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <div className="flex items-center gap-1.5">

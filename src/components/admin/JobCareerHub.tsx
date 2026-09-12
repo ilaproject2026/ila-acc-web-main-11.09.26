@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Award, Briefcase, Building2, Plus, Search, 
-  Filter, CheckCircle2, Star, Sparkles, Send, 
-  FileText, Users, Radio, Megaphone, Check, 
+import {
+  Award, Briefcase, Building2, Plus, Search,
+  Filter, CheckCircle2, Star, Sparkles, Send,
+  FileText, Users, Radio, Megaphone, Check,
   Trash2, Edit3, X, ArrowRight, TrendingUp,
   MapPin, DollarSign, Clock, ShieldCheck
 } from 'lucide-react';
-import { 
-  PartnerCompanyItem, 
-  JobListingItem, 
+import {
+  PartnerCompanyItem,
+  JobListingItem,
   CandidateResumeItem,
-  getPartnerCompanies, 
-  savePartnerCompany, 
+  getPartnerCompanies,
+  savePartnerCompany,
   deletePartnerCompany,
-  getJobListings, 
-  saveJobListing, 
+  getJobListings,
+  saveJobListing,
   deleteJobListing,
-  getCandidateResumes, 
+  getCandidateResumes,
   saveCandidateResume,
   parseAndMatchResume
 } from '../../lib/db';
@@ -24,6 +24,7 @@ import { HubHODView } from './common/HubHODView';
 import { HubAutoTriggerView } from './common/HubAutoTriggerView';
 import { HubSocialPromoView } from './common/HubSocialPromoView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
+import { HubSubNavBar, HubNavItem } from './common/HubSubNavBar';
 
 export const JobCareerHub: React.FC = () => {
   // Main Sub-Nav Tab: 'jobs_crud' | 'resume_matcher' | 'companies' | 'hod' | 'auto_trigger' | 'social_promo' | 'intake_tracking'
@@ -238,16 +239,26 @@ export const JobCareerHub: React.FC = () => {
 
   const filteredJobs = jobs.filter(j => {
     const matchSearch = j.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        j.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        j.requiredSkills.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+      j.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      j.requiredSkills.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchDomain = selectedDomainFilter === 'All' || j.domain === selectedDomainFilter;
     const matchCountry = selectedCountryFilter === 'All' || j.country === selectedCountryFilter;
     return matchSearch && matchDomain && matchCountry;
   });
 
+  const navItems: HubNavItem[] = [
+    { id: 'jobs_crud', label: 'Job Database (CRUD)', icon: Briefcase, badge: jobs.length },
+    { id: 'resume_matcher', label: 'Resume Parser & AI Match', icon: Sparkles, badge: candidates.length },
+    { id: 'companies', label: 'Partner Companies', icon: Building2, badge: companies.length },
+    { id: 'hod', label: 'Placement HOD Console', icon: Award },
+    { id: 'auto_trigger', label: 'Comm Triggers', icon: Radio },
+    { id: 'social_promo', label: 'Social Promo', icon: Megaphone },
+    { id: 'intake_tracking', label: 'Intake Desk', icon: Users },
+  ];
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      
+    <div className="flex flex-col w-full h-full min-h-[calc(100vh-12rem)] bg-slate-50 relative rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700 text-xs font-bold animate-in slide-in-from-bottom">
@@ -256,375 +267,295 @@ export const JobCareerHub: React.FC = () => {
         </div>
       )}
 
-      {/* 1. EXECUTIVE BANNER */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-indigo-900/60 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full">
-                <Award className="w-3.5 h-3.5" />
-                Job and Career Hub Placement Engine
-              </span>
-              <span className="text-[10px] font-bold bg-white/10 text-slate-300 px-3 py-1 rounded-full border border-white/10">
-                Partner Employer CRUD • Live Resume Parser • Blue Card Sponsorships
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Job and Career Hub
-            </h1>
-            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Connect certified Indian talent directly with German &amp; European employers. Manage partner corporate job listings, parse incoming candidate resumes, and trigger automated placement interviews.
-            </p>
-          </div>
+      {/* 1. SUB-NAVBAR: FULLY RESPONSIVE, SCROLLABLE & WRAP-ENABLED */}
+      <HubSubNavBar
+        items={navItems}
+        activeTab={activeTab}
+        onTabChange={(id:any) => setActiveTab(id as any)}
+        activeColorClass="bg-indigo-600"
+      />
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              onClick={() => handleOpenJobModal()}
-              className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" /> Post New Job Opening
-            </button>
-            <button
-              onClick={handleOpenResumeModal}
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-1.5 cursor-pointer"
-            >
-              <FileText className="w-4 h-4 text-emerald-300" /> + Upload &amp; Parse Resume
-            </button>
+      {/* Dynamic Content Area */}
+      <div className="flex-1 w-full bg-slate-50 overflow-y-auto no-scrollbar relative p-4 md:p-6 space-y-6">
+
+        {/* EXECUTIVE BANNER */}
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-indigo-900/60 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full">
+                  <Award className="w-3.5 h-3.5" />
+                  Job and Career Hub Placement Engine
+                </span>
+                <span className="text-[10px] font-bold bg-white/10 text-slate-300 px-3 py-1 rounded-full border border-white/10">
+                  Partner Employer CRUD • Live Resume Parser • Blue Card Sponsorships
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                Job and Career Hub
+              </h1>
+              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                Connect certified Indian talent directly with German &amp; European employers. Manage partner corporate job listings, parse incoming candidate resumes, and trigger automated placement interviews.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <button
+                onClick={() => handleOpenJobModal()}
+                className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Post New Job Opening
+              </button>
+              <button
+                onClick={handleOpenResumeModal}
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-emerald-300" /> + Upload &amp; Parse Resume
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* 2. UNIVERSAL SUB-NAVIGATION TABS */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('jobs_crud')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'jobs_crud'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Briefcase className="w-4 h-4 text-brand-400" />
-          <span>Live Job Database (CRUD)</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 font-black">
-            {jobs.length} Openings
-          </span>
-        </button>
+        {/* ========================================================================= */}
+        {/* SUB-TAB 1: LIVE JOB DATABASE (CRUD) */}
+        {/* ========================================================================= */}
+        {activeTab === 'jobs_crud' && (
+          <div className="space-y-6 animate-in fade-in">
 
-        <button
-          onClick={() => setActiveTab('resume_matcher')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'resume_matcher'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span>Resume Parser &amp; Dynamic Match</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black">
-            {candidates.length} Resumes
-          </span>
-        </button>
+            {/* Filter Bar */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  placeholder="Search jobs by title, company, skills (e.g. Kubernetes, Nursing, C++)..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border rounded-xl text-xs outline-none bg-slate-50"
+                />
+              </div>
 
-        <button
-          onClick={() => setActiveTab('companies')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'companies'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Building2 className="w-4 h-4 text-blue-400" />
-          <span>Partner Companies ({companies.length})</span>
-        </button>
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <select
+                  value={selectedDomainFilter}
+                  onChange={(e) => setSelectedDomainFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold outline-none"
+                >
+                  <option value="All">All Domains</option>
+                  <option value="Software & IT">Software &amp; IT</option>
+                  <option value="Engineering">Engineering</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Business & Finance">Business &amp; Finance</option>
+                </select>
 
-        <button
-          onClick={() => setActiveTab('hod')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'hod'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Award className="w-4 h-4 text-emerald-400" />
-          <span>HOD Console (Job &amp; Career)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('auto_trigger')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'auto_trigger'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Radio className="w-4 h-4 text-purple-400" />
-          <span>Auto-Trigger (Follow-up)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('social_promo')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'social_promo'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Megaphone className="w-4 h-4 text-amber-400" />
-          <span>Social Media Promo</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('intake_tracking')}
-          className={`px-4 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'intake_tracking'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Users className="w-4 h-4 text-indigo-400" />
-          <span>Intake Desk</span>
-        </button>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* SUB-TAB 1: LIVE JOB DATABASE (CRUD) */}
-      {/* ========================================================================= */}
-      {activeTab === 'jobs_crud' && (
-        <div className="space-y-6 animate-in fade-in">
-          
-          {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-              <input
-                type="text"
-                placeholder="Search jobs by title, company, skills (e.g. Kubernetes, Nursing, C++)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border rounded-xl text-xs outline-none bg-slate-50"
-              />
+                <select
+                  value={selectedCountryFilter}
+                  onChange={(e) => setSelectedCountryFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold outline-none"
+                >
+                  <option value="All">All Locations</option>
+                  <option value="Germany">Germany 🇩🇪</option>
+                  <option value="Austria">Austria 🇦🇹</option>
+                  <option value="Switzerland">Switzerland 🇨🇭</option>
+                  <option value="Netherlands">Netherlands 🇳🇱</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              <select
-                value={selectedDomainFilter}
-                onChange={(e) => setSelectedDomainFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold outline-none"
-              >
-                <option value="All">All Domains</option>
-                <option value="Software & IT">Software &amp; IT</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Healthcare">Healthcare</option>
-                <option value="Business & Finance">Business &amp; Finance</option>
-              </select>
+            {/* Job Cards Grid */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredJobs.map((job) => (
+                <div key={job.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between hover:shadow-md transition-shadow">
+                  <div className="space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          {job.domain}
+                        </span>
+                        <h3 className="font-bold text-slate-900 text-sm mt-1">{job.title}</h3>
+                        <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mt-0.5">
+                          <Building2 className="w-3 h-3 text-slate-400" /> {job.companyName} • <MapPin className="w-3 h-3 text-slate-400" /> {job.city}, {job.country}
+                        </div>
+                      </div>
+                      {job.blueCardEligible && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-800 shrink-0" title="European Blue Card Sponsorship eligible">
+                          Blue Card ✓
+                        </span>
+                      )}
+                    </div>
 
-              <select
-                value={selectedCountryFilter}
-                onChange={(e) => setSelectedCountryFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold outline-none"
-              >
-                <option value="All">All Locations</option>
-                <option value="Germany">Germany 🇩🇪</option>
-                <option value="Austria">Austria 🇦🇹</option>
-                <option value="Switzerland">Switzerland 🇨🇭</option>
-                <option value="Netherlands">Netherlands 🇳🇱</option>
-              </select>
-            </div>
-          </div>
+                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1 text-xs">
+                      <div className="font-black text-emerald-700 text-xs">{job.salaryRange}</div>
+                      <div className="text-[11px] text-slate-600">{job.contractType} • Min Exp: <strong>{job.minExperience}</strong></div>
+                    </div>
 
-          {/* Job Cards Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredJobs.map((job) => (
-              <div key={job.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <div className="space-y-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
-                        {job.domain}
-                      </span>
-                      <h3 className="font-bold text-slate-900 text-sm mt-1">{job.title}</h3>
-                      <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-1 mt-0.5">
-                        <Building2 className="w-3 h-3 text-slate-400" /> {job.companyName} • <MapPin className="w-3 h-3 text-slate-400" /> {job.city}, {job.country}
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Required Skills:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {job.requiredSkills.map((sk, idx) => (
+                          <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-semibold">
+                            {sk}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                    {job.blueCardEligible && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-800 shrink-0" title="European Blue Card Sponsorship eligible">
-                        Blue Card ✓
-                      </span>
-                    )}
                   </div>
 
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1 text-xs">
-                    <div className="font-black text-emerald-700 text-xs">{job.salaryRange}</div>
-                    <div className="text-[11px] text-slate-600">{job.contractType} • Min Exp: <strong>{job.minExperience}</strong></div>
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-slate-500 font-bold">
+                      German: <strong className="text-indigo-700">{job.minGermanLevel}</strong> • {job.openings} Seats
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleOpenJobModal(job)} className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg cursor-pointer">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDeleteJob(job.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded-lg cursor-pointer">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
+                </div>
+              ))}
+            </div>
 
-                  <div className="space-y-1">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Required Skills:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {job.requiredSkills.map((sk, idx) => (
-                        <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-semibold">
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB 2: RESUME PARSER & DYNAMIC JOB MATCH */}
+        {/* ========================================================================= */}
+        {activeTab === 'resume_matcher' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full">
+                    AI Placement &amp; CV Intelligence
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">Candidate Resumes &amp; Dynamic European Job Matcher</h3>
+                  <p className="text-xs text-slate-500">
+                    Parses candidate skill vectors, years of experience, and German CEFR level against live partner listings.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleOpenResumeModal}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Parse New Candidate CV
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {candidates.map((cand) => (
+                  <div key={cand.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm">{cand.candidateName}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold">
+                            {cand.field} • {cand.yearsOfExperience} Yrs Exp
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-black uppercase bg-emerald-100 text-emerald-800">
+                            {cand.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {cand.email} • {cand.phone} • Target: <strong className="text-slate-700">{cand.targetCountry}</strong>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleMatchCandidate(cand)}
+                        className="px-4 py-2 bg-slate-900 hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Match Against Live Jobs
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {cand.primarySkills.map((sk, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-white border border-slate-200 text-slate-700 rounded-md text-[10px] font-semibold">
                           {sk}
                         </span>
                       ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-[11px] text-slate-500 font-bold">
-                    German: <strong className="text-indigo-700">{job.minGermanLevel}</strong> • {job.openings} Seats
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => handleOpenJobModal(job)} className="p-1.5 text-slate-600 hover:text-slate-900 rounded-lg cursor-pointer">
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDeleteJob(job.id)} className="p-1.5 text-red-500 hover:text-red-700 rounded-lg cursor-pointer">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SUB-TAB 2: RESUME PARSER & DYNAMIC JOB MATCH */}
-      {/* ========================================================================= */}
-      {activeTab === 'resume_matcher' && (
-        <div className="space-y-6 animate-in fade-in">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
-              <div>
-                <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full">
-                  AI Placement &amp; CV Intelligence
-                </span>
-                <h3 className="text-lg font-black text-slate-900 mt-1">Candidate Resumes &amp; Dynamic European Job Matcher</h3>
-                <p className="text-xs text-slate-500">
-                  Parses candidate skill vectors, years of experience, and German CEFR level against live partner listings.
-                </p>
-              </div>
-
-              <button
-                onClick={handleOpenResumeModal}
-                className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" /> Parse New Candidate CV
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {candidates.map((cand) => (
-                <div key={cand.id} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{cand.candidateName}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-bold">
-                          {cand.field} • {cand.yearsOfExperience} Yrs Exp
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-black uppercase bg-emerald-100 text-emerald-800">
-                          {cand.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {cand.email} • {cand.phone} • Target: <strong className="text-slate-700">{cand.targetCountry}</strong>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleMatchCandidate(cand)}
-                      className="px-4 py-2 bg-slate-900 hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Match Against Live Jobs
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {cand.primarySkills.map((sk, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-white border border-slate-200 text-slate-700 rounded-md text-[10px] font-semibold">
-                        {sk}
+                      <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-md text-[10px] font-bold">
+                        German Level: {cand.germanLevel}
                       </span>
-                    ))}
-                    <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-md text-[10px] font-bold">
-                      German Level: {cand.germanLevel}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUB-TAB 3: PARTNER COMPANIES */}
+        {activeTab === 'companies' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {companies.map(comp => (
+                <div key={comp.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl">{comp.logo}</span>
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      {comp.status}
                     </span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">{comp.name}</h3>
+                    <p className="text-xs text-slate-500">{comp.industry} • {comp.location}</p>
+                  </div>
+                  <div className="p-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-600">
+                    Contact: <strong className="text-slate-800">{comp.contactPerson}</strong>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 3: PARTNER COMPANIES */}
-      {activeTab === 'companies' && (
-        <div className="space-y-6 animate-in fade-in">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {companies.map(comp => (
-              <div key={comp.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">{comp.logo}</span>
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    {comp.status}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">{comp.name}</h3>
-                  <p className="text-xs text-slate-500">{comp.industry} • {comp.location}</p>
-                </div>
-                <div className="p-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-600">
-                  Contact: <strong className="text-slate-800">{comp.contactPerson}</strong>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        {/* ========================================================================= */}
+        {/* SUB-TAB 4: HOD CONSOLE */}
+        {activeTab === 'hod' && (
+          <HubHODView
+            departmentName="Job & Career Placement"
+            departmentTagline="European Hiring Consortium, Fast-Track Corporate Pipelines & Placement Drives"
+          />
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 4: HOD CONSOLE */}
-      {activeTab === 'hod' && (
-        <HubHODView 
-          departmentName="Job & Career Placement"
-          departmentTagline="European Hiring Consortium, Fast-Track Corporate Pipelines & Placement Drives"
-        />
-      )}
+        {/* ========================================================================= */}
+        {/* SUB-TAB 5: AUTO-TRIGGER FOLLOW-UP */}
+        {activeTab === 'auto_trigger' && (
+          <HubAutoTriggerView
+            departmentName="Jobs"
+            defaultEventTypes={[
+              { key: 'profile_dropoff', label: 'Candidate Resume Inactive' },
+              { key: 'document_pending', label: 'Missing German Europass CV' },
+              { key: 'incomplete_enrollment', label: 'Technical Screening Pending' },
+              { key: 'pending_payment', label: 'Offer Letter Acceptance Follow-up' }
+            ]}
+          />
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 5: AUTO-TRIGGER FOLLOW-UP */}
-      {activeTab === 'auto_trigger' && (
-        <HubAutoTriggerView 
-          departmentName="Jobs" 
-          defaultEventTypes={[
-            { key: 'profile_dropoff', label: 'Candidate Resume Inactive' },
-            { key: 'document_pending', label: 'Missing German Europass CV' },
-            { key: 'incomplete_enrollment', label: 'Technical Screening Pending' },
-            { key: 'pending_payment', label: 'Offer Letter Acceptance Follow-up' }
-          ]}
-        />
-      )}
+        {/* ========================================================================= */}
+        {/* SUB-TAB 6: SOCIAL MEDIA PROMO */}
+        {activeTab === 'social_promo' && (
+          <HubSocialPromoView departmentName="Jobs" />
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 6: SOCIAL MEDIA PROMO */}
-      {activeTab === 'social_promo' && (
-        <HubSocialPromoView departmentName="Jobs" />
-      )}
+        {/* ========================================================================= */}
+        {/* SUB-TAB 7: INTAKE TRACKING */}
+        {activeTab === 'intake_tracking' && (
+          <HubIntakeTrackingView
+            departmentName="Jobs"
+            departmentTitle="Job and Career Hub Candidates & Placements Intake Desk"
+          />
+        )}
 
-      {/* ========================================================================= */}
-      {/* SUB-TAB 7: INTAKE TRACKING */}
-      {activeTab === 'intake_tracking' && (
-        <HubIntakeTrackingView 
-          departmentName="Jobs" 
-          departmentTitle="Job and Career Hub Candidates & Placements Intake Desk" 
-        />
-      )}
+      </div>
 
       {/* MATCH MODAL */}
       {showMatchModal && selectedCandidate && (

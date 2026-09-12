@@ -6,9 +6,9 @@ import AICourseCreator from './AICourseCreator';
 import AdminTimeTableHub from './AdminTimeTableHub';
 import AutomatedCommTriggersHub from '../education/AutomatedCommTriggersHub';
 import HODWorkStudyHub from './HODWorkStudyHub';
-import { 
-  BookOpen, Calendar, PlusCircle, Sparkles, Users, UserCheck, 
-  CheckSquare, Clock, Database, UserPlus, HelpCircle, Award, 
+import {
+  BookOpen, Calendar, PlusCircle, Sparkles, Users, UserCheck,
+  CheckSquare, Clock, Database, UserPlus, HelpCircle, Award,
   Layers, ArrowRight, Activity, Search, ChevronLeft, ChevronRight,
   LayoutGrid, List, SlidersHorizontal, Radio, MessageSquare, Zap, Briefcase, Megaphone
 } from 'lucide-react';
@@ -17,25 +17,25 @@ import { HubSocialPromoView } from './common/HubSocialPromoView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
 
 const EducationHub: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('LIBRARY & CLASS ROOM');
+  const [activeTab, setActiveTab] = useState<string>('HOD DB');
   const [isWrapMode, setIsWrapMode] = useState<boolean>(false);
   const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
   const [canScrollRight, setCanScrollRight] = useState<boolean>(true);
-  
+
   const navContainerRef = useRef<HTMLDivElement>(null);
 
   const navigationItems = [
+    { id: 'HOD DB', label: 'HOD DB', icon: Database },
     { id: 'HOD WORK & STUDY', label: 'HOD Work & Study', icon: Briefcase },
     { id: 'COMMUNICATION TRIGGERS', label: 'Comm Triggers', icon: Radio },
     { id: 'SOCIAL MEDIA PROMO', label: 'Social Promo', icon: Megaphone },
     { id: 'INTAKE TRACKING', label: 'Intake Desk', icon: Users },
-    { id: 'TIME TABLE', label: 'Time Table', icon: Clock },
-    { id: 'HOD DB', label: 'HOD DB', icon: Database },
+    // { id: 'TIME TABLE', label: 'Time Table', icon: Clock }, /* Hidden per request */
     { id: 'LIBRARY & CLASS ROOM', label: 'Library & Classroom', icon: BookOpen },
-    { id: 'STUDENT ROSTER', label: 'Academic Roster', icon: UserCheck },
+    // { id: 'STUDENT ROSTER', label: 'Academic Roster', icon: UserCheck }, /* Hidden per request */
     { id: 'SERVICES & BATCHES', label: 'Path & Batch', icon: Calendar },
     { id: 'COURSE CREATE', label: 'Course Creator', icon: PlusCircle },
-    { id: 'AI COURSE CREATOR', label: 'AI Creator', icon: Sparkles },
+    // { id: 'AI COURSE CREATOR', label: 'AI Creator', icon: Sparkles }, /* Hidden per request */
     { id: 'TASK DELEGATION', label: 'Task Delegation', icon: CheckSquare },
     { id: 'STAFF & ATTENDANCE', label: 'Staff Attendance', icon: Users },
     { id: 'STUDENT ATTN', label: 'Student Attendance', icon: UserCheck },
@@ -110,8 +110,10 @@ const EducationHub: React.FC = () => {
             <HubIntakeTrackingView departmentName="Education" departmentTitle="All Courses Hub / Classroom Intake Desk" />
           </div>
         );
+      /* Hidden per request:
       case 'TIME TABLE':
         return <AdminTimeTableHub />;
+      */
       case 'LIBRARY & CLASS ROOM':
         return <LibraryAndClassRoom onNavigateTab={(tab) => setActiveTab(tab)} />;
       case 'SERVICES & BATCHES':
@@ -119,8 +121,10 @@ const EducationHub: React.FC = () => {
       case 'COURSE CREATE':
       case 'COURSE CREATOR':
         return <CourseCreator onNavigateTab={(tab) => setActiveTab(tab)} />;
+      /* Hidden per request:
       case 'AI COURSE CREATOR':
         return <AICourseCreator onNavigateTab={(tab) => setActiveTab(tab)} />;
+      */
       case 'HOD DB':
         const courses = getGlobalCourses();
         const staffList = getStaffRegistry();
@@ -196,6 +200,7 @@ const EducationHub: React.FC = () => {
             </div>
           </div>
         );
+      /* Hidden per request:
       case 'STUDENT ROSTER':
         const enrolledStudents = getInquiries().filter(i => i.category === 'Education');
         return (
@@ -240,6 +245,7 @@ const EducationHub: React.FC = () => {
             </div>
           </div>
         );
+      */
       case 'TASK DELEGATION':
       case 'STAFF & ATTENDANCE':
       case 'STUDENT ATTN':
@@ -292,21 +298,20 @@ const EducationHub: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full h-full min-h-[calc(100vh-12rem)] bg-slate-50 relative rounded-2xl border border-slate-200 shadow-xs">
-      
+
       {/* =========================================================================
           EDUCATION HUB SUB-NAVBAR: FULLY RESPONSIVE, SCROLLABLE & WRAP-ENABLED
       ========================================================================= */}
       <div className="bg-slate-900 border-b border-slate-800/90 sticky top-0 z-30 shadow-md">
         <div className="flex items-center justify-between px-2 py-1.5 md:px-3 md:py-2 gap-2 relative">
-          
+
           {/* Left Scroll Arrow Button */}
           {!isWrapMode && (
             <button
               onClick={() => scrollNav('left')}
               disabled={!canScrollLeft}
-              className={`p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all shrink-0 cursor-pointer hidden sm:flex items-center justify-center ${
-                !canScrollLeft ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-100 shadow-xs bg-slate-800/80'
-              }`}
+              className={`p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all shrink-0 cursor-pointer hidden sm:flex items-center justify-center ${!canScrollLeft ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-100 shadow-xs bg-slate-800/80'
+                }`}
               title="Scroll Menu Left"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -314,15 +319,14 @@ const EducationHub: React.FC = () => {
           )}
 
           {/* Navigation Items Container (Scrollable or Wrapped) */}
-          <div 
+          <div
             ref={navContainerRef}
             onScroll={updateScrollButtons}
             onWheel={handleNavWheel}
-            className={`w-full flex items-center gap-1.5 py-0.5 transition-all ${
-              isWrapMode 
-                ? 'flex-wrap overflow-visible' 
+            className={`w-full flex items-center gap-1.5 py-0.5 transition-all ${isWrapMode
+                ? 'flex-wrap overflow-visible'
                 : 'overflow-x-auto scroll-smooth no-scrollbar'
-            }`}
+              }`}
           >
             {navigationItems.map((item) => {
               const Icon = item.icon;
@@ -334,11 +338,10 @@ const EducationHub: React.FC = () => {
                   id={tabDomId}
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                    isActive 
-                      ? 'bg-brand-600 text-white shadow-xs font-black ring-1 ring-brand-400/40' 
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer ${isActive
+                      ? 'bg-brand-600 text-white shadow-xs font-black ring-1 ring-brand-400/40'
                       : 'text-slate-300 hover:text-white hover:bg-white/10 bg-slate-800/40'
-                  }`}
+                    }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-300' : 'text-slate-400'}`} />
                   <span className="uppercase tracking-wider text-[11px] font-black">{item.label}</span>
@@ -352,9 +355,8 @@ const EducationHub: React.FC = () => {
             <button
               onClick={() => scrollNav('right')}
               disabled={!canScrollRight}
-              className={`p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all shrink-0 cursor-pointer hidden sm:flex items-center justify-center ${
-                !canScrollRight ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-100 shadow-xs bg-slate-800/80'
-              }`}
+              className={`p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all shrink-0 cursor-pointer hidden sm:flex items-center justify-center ${!canScrollRight ? 'opacity-30 cursor-not-allowed pointer-events-none' : 'opacity-100 shadow-xs bg-slate-800/80'
+                }`}
               title="Scroll Menu Right to View All Tabs"
             >
               <ChevronRight className="w-4 h-4 text-amber-300 animate-pulse" />
@@ -364,11 +366,10 @@ const EducationHub: React.FC = () => {
           {/* Wrap / Expand All Tabs Toggle Button */}
           <button
             onClick={() => setIsWrapMode(!isWrapMode)}
-            className={`p-1.5 px-2 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 border ${
-              isWrapMode 
-                ? 'bg-amber-400 text-slate-950 border-amber-300 font-black shadow-xs' 
+            className={`p-1.5 px-2 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1 border ${isWrapMode
+                ? 'bg-amber-400 text-slate-950 border-amber-300 font-black shadow-xs'
                 : 'text-slate-300 hover:text-white bg-slate-800/80 border-slate-700 hover:bg-slate-700'
-            }`}
+              }`}
             title={isWrapMode ? 'Switch to Single-Row Slider' : 'Expand All 12 Menu Tabs'}
           >
             {isWrapMode ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5 text-amber-300" />}
@@ -381,7 +382,7 @@ const EducationHub: React.FC = () => {
       {/* Dynamic Content Area */}
       <div className="flex-1 w-full bg-slate-50 overflow-y-auto no-scrollbar relative">
         <div className="w-full h-full">
-           {renderContent()}
+          {renderContent()}
         </div>
       </div>
     </div>
