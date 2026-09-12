@@ -33,7 +33,7 @@ const EducationHub: React.FC = () => {
     // { id: 'HOD WORK & STUDY', label: 'HOD Work & Study', icon: Briefcase },
     { id: 'COMMUNICATION TRIGGERS', label: 'Comm Triggers', icon: Radio },
     { id: 'SOCIAL MEDIA PROMO', label: 'Social Promo', icon: Megaphone },
-    { id: 'INTAKE TRACKING', label: 'Intake Desk', icon: Users },
+    // { id: 'INTAKE TRACKING', label: 'Intake Desk', icon: Users },
     // { id: 'TIME TABLE', label: 'Time Table', icon: Clock }, /* Hidden per request */
     // { id: 'STUDENT ROSTER', label: 'Academic Roster', icon: UserCheck }, /* Hidden per request */
     // { id: 'AI COURSE CREATOR', label: 'AI Creator', icon: Sparkles }, /* Hidden per request */
