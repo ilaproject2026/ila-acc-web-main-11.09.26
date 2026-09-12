@@ -3,9 +3,6 @@ import LibraryAndClassRoom from './LibraryAndClassRoom';
 import ServicesAndBatches from './ServicesAndBatches';
 import CourseCreator from './CourseCreator';
 import AICourseCreator from './AICourseCreator';
-import EngineHubWorkspace from './EngineHubWorkspace';
-import CreateCourseAndPathModal from './CreateCourseAndPathModal';
-import StudentComplianceHub from './StudentComplianceHub';
 import AdminTimeTableHub from './AdminTimeTableHub';
 import AutomatedCommTriggersHub from '../education/AutomatedCommTriggersHub';
 import HODWorkStudyHub from './HODWorkStudyHub';
@@ -15,7 +12,7 @@ import {
   Layers, ArrowRight, Activity, Search, ChevronLeft, ChevronRight,
   LayoutGrid, List, SlidersHorizontal, Radio, MessageSquare, Zap, Briefcase, Megaphone
 } from 'lucide-react';
-import { getInquiries, getStaffRegistry, getAttendanceLogs, getGlobalCourses, CourseDeliveryFormat, GlobalCourse } from '../../lib/db';
+import { getInquiries, getStaffRegistry, getAttendanceLogs, getGlobalCourses } from '../../lib/db';
 import { HubSocialPromoView } from './common/HubSocialPromoView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
 
@@ -25,42 +22,23 @@ const EducationHub: React.FC = () => {
   const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
   const [canScrollRight, setCanScrollRight] = useState<boolean>(true);
 
-  // Engine Hub Bridge & Modal State (Phase A)
-  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [engineHubParams, setEngineHubParams] = useState<{
-    courseName: string;
-    category: string;
-    targetTrack: string;
-    deliveryFormats: CourseDeliveryFormat[];
-    campMode?: 'Online' | 'Offline';
-    engineHubUrl: string;
-  }>({
-    courseName: 'German Language B2 Intensive',
-    category: 'German Language',
-    targetTrack: 'German Language A1–C2 Standard',
-    deliveryFormats: ['SLIDE_AI', 'VIDEO_AI', 'INTELLI_COACH', 'ONE_ON_ONE', 'CAMPS_SPORTS'] as CourseDeliveryFormat[],
-    campMode: 'Online',
-    engineHubUrl: 'https://enginehub.ila.academy'
-  });
-
   const navContainerRef = useRef<HTMLDivElement>(null);
 
   const navigationItems = [
     { id: 'HOD DB', label: 'HOD DB', icon: Database },
-    { id: 'HOD WORK & STUDY', label: 'HOD Work & Study', icon: Briefcase },
+    // { id: 'HOD WORK & STUDY', label: 'HOD Work & Study', icon: Briefcase },
     { id: 'COMMUNICATION TRIGGERS', label: 'Comm Triggers', icon: Radio },
     { id: 'SOCIAL MEDIA PROMO', label: 'Social Promo', icon: Megaphone },
     { id: 'INTAKE TRACKING', label: 'Intake Desk', icon: Users },
     // { id: 'TIME TABLE', label: 'Time Table', icon: Clock }, /* Hidden per request */
     { id: 'LIBRARY & CLASS ROOM', label: 'Library & Classroom', icon: BookOpen },
-    { id: 'ENGINE HUB', label: 'Engine Hub / Creator', icon: Sparkles },
     // { id: 'STUDENT ROSTER', label: 'Academic Roster', icon: UserCheck }, /* Hidden per request */
     { id: 'SERVICES & BATCHES', label: 'Path & Batch', icon: Calendar },
     { id: 'COURSE CREATE', label: 'Course Creator', icon: PlusCircle },
     // { id: 'AI COURSE CREATOR', label: 'AI Creator', icon: Sparkles }, /* Hidden per request */
     { id: 'TASK DELEGATION', label: 'Task Delegation', icon: CheckSquare },
     { id: 'STAFF & ATTENDANCE', label: 'Staff Attendance', icon: Users },
-    { id: 'STUDENT ATTN', label: 'Compliance & Attendance', icon: UserCheck },
+    { id: 'STUDENT ATTN', label: 'Student Attendance', icon: UserCheck },
     { id: 'EXAM REST', label: 'Exams & Results', icon: Award }
   ];
 
@@ -136,20 +114,6 @@ const EducationHub: React.FC = () => {
       case 'TIME TABLE':
         return <AdminTimeTableHub />;
       */
-      case 'ENGINE HUB':
-      case 'ENGINE HUB / CREATOR':
-        return (
-          <EngineHubWorkspace 
-            initialCourseName={engineHubParams.courseName}
-            initialCategory={engineHubParams.category}
-            initialTrack={engineHubParams.targetTrack}
-            initialFormats={engineHubParams.deliveryFormats}
-            initialCampMode={engineHubParams.campMode}
-            onNavigateToLibrary={() => {
-              setActiveTab('LIBRARY & CLASS ROOM');
-            }}
-          />
-        );
       case 'LIBRARY & CLASS ROOM':
         return <LibraryAndClassRoom onNavigateTab={(tab) => setActiveTab(tab)} />;
       case 'SERVICES & BATCHES':
@@ -172,18 +136,12 @@ const EducationHub: React.FC = () => {
                 <h2 className="text-xl font-black text-slate-900 mt-1.5">Head of Department Master Database</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Real-time oversight of courses, active batches, academic faculty, and classroom allocation.</p>
               </div>
-              <div className="flex gap-2 flex-wrap">
-                <button 
-                  onClick={() => setShowCreateModal(true)} 
-                  className="px-3.5 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer ring-2 ring-amber-400/30"
-                >
-                  <PlusCircle className="w-4 h-4 text-slate-950 stroke-[2.5]" /> Create Course & Path
-                </button>
+              <div className="flex gap-2">
                 <button onClick={() => setActiveTab('LIBRARY & CLASS ROOM')} className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
                   <BookOpen className="w-4 h-4" /> Open Classroom
                 </button>
-                <button onClick={() => setActiveTab('ENGINE HUB')} className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
-                  <Sparkles className="w-4 h-4" /> Engine Hub
+                <button onClick={() => setActiveTab('COURSE CREATE')} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                  <PlusCircle className="w-4 h-4" /> Create Course
                 </button>
               </div>
             </div>
@@ -288,10 +246,9 @@ const EducationHub: React.FC = () => {
           </div>
         );
       */
-      case 'STUDENT ATTN':
-        return <StudentComplianceHub />;
       case 'TASK DELEGATION':
       case 'STAFF & ATTENDANCE':
+      case 'STUDENT ATTN':
       case 'EXAM REST':
         return (
           <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5 animate-in fade-in">
@@ -373,36 +330,22 @@ const EducationHub: React.FC = () => {
           >
             {navigationItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id || (item.id === 'COURSE CREATE' && activeTab === 'COURSE CREATOR') || (item.id === 'ENGINE HUB' && activeTab === 'ENGINE HUB / CREATOR');
+              const isActive = activeTab === item.id || (item.id === 'COURSE CREATE' && activeTab === 'COURSE CREATOR');
               const tabDomId = `nav-tab-${item.id.replace(/\s+/g, '-')}`;
 
               return (
-                <React.Fragment key={item.id}>
-                  <button
-                    id={tabDomId}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer ${isActive
-                        ? 'bg-brand-600 text-white shadow-xs font-black ring-1 ring-brand-400/40'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10 bg-slate-800/40'
-                      }`}
-                  >
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-300' : 'text-slate-400'}`} />
-                    <span className="uppercase tracking-wider text-[11px] font-black">{item.label}</span>
-                  </button>
-
-                  {/* UNIFIED COURSE & PATH TRIGGER: Placed prominently next to the Library section */}
-                  {item.id === 'LIBRARY & CLASS ROOM' && (
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateModal(true)}
-                      className="px-3 py-1.5 text-xs font-black rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 shadow-md ring-2 ring-amber-400/50 animate-pulse hover:animate-none"
-                      title="Initiate Course & Path Creation (Bridge to Course Creator Engine Hub)"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
-                      <span className="uppercase tracking-wider text-[11px] font-black">Create Course & Path</span>
-                    </button>
-                  )}
-                </React.Fragment>
+                <button
+                  id={tabDomId}
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer ${isActive
+                      ? 'bg-brand-600 text-white shadow-xs font-black ring-1 ring-brand-400/40'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10 bg-slate-800/40'
+                    }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-300' : 'text-slate-400'}`} />
+                  <span className="uppercase tracking-wider text-[11px] font-black">{item.label}</span>
+                </button>
               );
             })}
           </div>
@@ -442,19 +385,6 @@ const EducationHub: React.FC = () => {
           {renderContent()}
         </div>
       </div>
-
-      {/* Create Course & Path Modal Bridge */}
-      <CreateCourseAndPathModal 
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onLaunchEngineHub={(params) => {
-          setEngineHubParams(params);
-          setActiveTab('ENGINE HUB');
-        }}
-        onSavedToLibrary={() => {
-          setActiveTab('LIBRARY & CLASS ROOM');
-        }}
-      />
     </div>
   );
 };

@@ -8,14 +8,9 @@ import {
   ChevronRight, ArrowRight, ExternalLink, Bookmark, ShieldCheck, 
   Terminal, Sliders, Globe, Zap, Check, Copy, RefreshCw, PlusCircle,
   User, UserPlus, Radio, Award, AlertCircle, Lock, LayoutGrid, List,
-  Filter, ChevronDown, BarChart2, Cpu, Presentation, Trophy, MapPin,
-  Link as LinkIcon, Calendar, CheckSquare
+  Filter, ChevronDown, BarChart2, Cpu
 } from 'lucide-react';
-import { 
-  getGlobalCourses, setGlobalCourses, GlobalCourse, EnrolledStudent, 
-  getGlobalCategories, GlobalCategory, CourseDeliveryFormat, generateSecureCourseLink 
-} from '../../lib/db';
-import CreateCourseAndPathModal from './CreateCourseAndPathModal';
+import { getGlobalCourses, setGlobalCourses, GlobalCourse, EnrolledStudent, getGlobalCategories, GlobalCategory } from '../../lib/db';
 
 interface LibraryAndClassRoomProps {
   onNavigateTab?: (tabName: string) => void;
@@ -61,49 +56,6 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
   const [librarySectionTab, setLibrarySectionTab] = useState<'ALL' | 'INTELLI_COACH' | 'VIDEO_AI' | 'TUTOR'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
   const [courseViewMode, setCourseViewMode] = useState<'GRID' | 'LIST'>('GRID');
-
-  // 1b. 5 Delivery Formats State & Modal Trigger (Phase A & B)
-  const [activeDeliveryPath, setActiveDeliveryPath] = useState<CourseDeliveryFormat>('SLIDE_AI');
-  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [slideIndex, setSlideIndex] = useState<number>(0);
-  const [showBookDrawer, setShowBookDrawer] = useState<boolean>(false);
-  const [campTab, setCampTab] = useState<'Online' | 'Offline'>('Online');
-  const [copiedLink, setCopiedLink] = useState<boolean>(false);
-
-  const lessonSlides = [
-    {
-      id: 'sl-1',
-      title: 'Slide 1: Core Linguistic Taxonomy & Phonetics',
-      rule: 'Phonetic articulation of German vowels, umlauts (ä, ö, ü) & diphthongs (ei, eu, au).',
-      examples: ['das Mädchen [dɪˈmaːtçən]', 'die Übung [ˈyːbʊŋ]', 'Deutschland [ˈdɔʏtʃlant]'],
-      whiteboardNotes: 'Vowel height adjustments: Umlaut transformation changes grammatical meaning and acoustic register.',
-      bookReference: 'Refer to Official Study Handbook Chapter 1, Section 1.4: "Acoustic Foundations".'
-    },
-    {
-      id: 'sl-2',
-      title: 'Slide 2: Verb Conjugation & Syntax Matrix',
-      rule: 'Regular and irregular verb endings in Präsens (sein, haben, werden, arbeiten).',
-      examples: ['ich bin / du bist / er ist', 'wir arbeiten / ihr arbeitet / sie arbeiten'],
-      whiteboardNotes: 'V2 Word Order Rule: In declarative German main clauses, the conjugated verb ALWAYS occupies position 2.',
-      bookReference: 'Refer to CEFR Grammar Guide Chapter 2, Page 18: "V2 Sentence Structure Rules".'
-    },
-    {
-      id: 'sl-3',
-      title: 'Slide 3: Situational Dialogue in Clinical / Professional Context',
-      rule: 'Patient intake anamnesis and formal boardroom addressing (Sie vs. du).',
-      examples: ['"Guten Tag, Herr Weber. Welche Beschwerden haben Sie heute?"', '"Ich habe seit gestern starke Kopfschmerzen."'],
-      whiteboardNotes: 'Formal address requires capitalized Sie and corresponding third-person plural verb inflections.',
-      bookReference: 'Refer to Professional Handout Chapter 3: "Clinical & Technical Workplace Communication".'
-    },
-    {
-      id: 'sl-4',
-      title: 'Slide 4: Milestone Summary & Practice Synthesis',
-      rule: 'Autonomous speech rehearsal drill and active pronunciation verification.',
-      examples: ['Audio benchmark: 94% native phonetic alignment threshold required.'],
-      whiteboardNotes: 'Practice answering prompt aloud. Telemetry system evaluates real-time formant frequency.',
-      bookReference: 'Refer to Self-Study Practice Drills Chapter 4, Exercises A–D.'
-    }
-  ];
   
   // 2. Playback & Player State
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -138,7 +90,6 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
   const [showCommandModal, setShowCommandModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showShareToast, setShowShareToast] = useState<boolean>(false);
-  const [showCreateCoursePathModal, setShowCreateCoursePathModal] = useState<boolean>(false);
   
   // 5. Doubt by Text & Voice State
   const [isVoiceListening, setIsVoiceListening] = useState<boolean>(false);
@@ -275,19 +226,8 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
     category: 'German Language',
     materials: 'Digital Library & Workbooks'
   };
+
   const isAICourse = activeCourse.libraryType === 'AI' || activeCourse.name.toLowerCase().includes('ielts') || activeCourse.name.toLowerCase().includes('social');
-
-  // Dynamic secure course access link tied to this database entry (Phase B)
-  const secureCourseLink = activeCourse.secureAccessLink || generateSecureCourseLink(activeCourse.id, activeCourse.secureAccessCode);
-
-  const handleCopySecureLink = () => {
-    navigator.clipboard.writeText(secureCourseLink);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
-  };
-
-  // Strict Layout Rule: left-side chat history sidebar must remain hidden in Slide + AI and Video + AI views
-  const isChatSidebarHidden = activeDeliveryPath === 'SLIDE_AI' || activeDeliveryPath === 'VIDEO_AI';
 
   // Enrolled students list for the active course
   const enrolledStudents: EnrolledStudent[] = activeCourse.enrolledStudentsList || [
@@ -884,146 +824,7 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
         </div>
       )}
 
-      {/* =========================================================================
-          1. DYNAMIC SECURE ACCESS LINK BANNER & QUICK CREATE TRIGGER (PHASE A & B)
-      ========================================================================= */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0 font-bold">
-            <LinkIcon className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                Unique Secure Course Link
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">Code: {activeCourse.secureAccessCode || 'SEC-ACTIVE'}</span>
-            </div>
-            <div className="text-xs font-mono font-bold text-slate-800 truncate mt-0.5">
-              {secureCourseLink}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <button
-            onClick={handleCopySecureLink}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              copiedLink 
-                ? 'bg-emerald-600 text-white' 
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-            }`}
-          >
-            {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? 'Link Copied!' : 'Copy Secure Link'}</span>
-          </button>
-
-          <button
-            onClick={() => window.open(secureCourseLink, '_blank')}
-            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Launch Student View</span>
-          </button>
-
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ring-2 ring-amber-400/30"
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
-            <span>Create Course & Path</span>
-          </button>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          2. DELIVERY FORMAT SELECTOR BAR (ALL 5 DELIVERY PATHS)
-      ========================================================================= */}
-      <div className="bg-slate-900 p-2 rounded-2xl border border-slate-800 shadow-md flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[10px] uppercase font-black tracking-wider text-amber-300 px-2 py-1">
-            Active Delivery Path:
-          </span>
-
-          {/* 1. Slide + AI */}
-          <button
-            onClick={() => setActiveDeliveryPath('SLIDE_AI')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeDeliveryPath === 'SLIDE_AI'
-                ? 'bg-indigo-600 text-white shadow-xs font-black ring-1 ring-indigo-400'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <Presentation className="w-3.5 h-3.5" />
-            <span>Slide + AI</span>
-            <span className="text-[9px] px-1 py-0.2 bg-white/20 rounded-full">Chat Hidden</span>
-          </button>
-
-          {/* 2. Video + AI */}
-          <button
-            onClick={() => setActiveDeliveryPath('VIDEO_AI')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeDeliveryPath === 'VIDEO_AI'
-                ? 'bg-purple-600 text-white shadow-xs font-black ring-1 ring-purple-400'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <MonitorPlay className="w-3.5 h-3.5" />
-            <span>Video + AI</span>
-            <span className="text-[9px] px-1 py-0.2 bg-white/20 rounded-full">Chat Hidden</span>
-          </button>
-
-          {/* 3. IntelliCoach */}
-          <button
-            onClick={() => setActiveDeliveryPath('INTELLI_COACH')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeDeliveryPath === 'INTELLI_COACH'
-                ? 'bg-amber-500 text-slate-950 shadow-xs font-black ring-1 ring-amber-300'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>IntelliCoach AI</span>
-            <span className="text-[9px] px-1 py-0.2 bg-white/20 rounded-full">Interactive Book</span>
-          </button>
-
-          {/* 4. 1-to-1 Coaching */}
-          <button
-            onClick={() => setActiveDeliveryPath('ONE_ON_ONE')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeDeliveryPath === 'ONE_ON_ONE'
-                ? 'bg-emerald-600 text-white shadow-xs font-black ring-1 ring-emerald-400'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>1-to-1 Coaching</span>
-          </button>
-
-          {/* 5. Camps & Sports */}
-          <button
-            onClick={() => setActiveDeliveryPath('CAMPS_SPORTS')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeDeliveryPath === 'CAMPS_SPORTS'
-                ? 'bg-rose-600 text-white shadow-xs font-black ring-1 ring-rose-400'
-                : 'text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            <span>Camps & Sports</span>
-            <span className="text-[9px] px-1 py-0.2 bg-white/20 rounded-full">{campTab}</span>
-          </button>
-        </div>
-
-        {/* Strict Layout Rule Indicator */}
-        {isChatSidebarHidden && (
-          <span className="text-[10px] text-amber-300 bg-amber-400/10 px-2.5 py-1 rounded-lg border border-amber-400/20 font-bold shrink-0 hidden md:inline">
-            ✨ Strict Layout Rule Active: Left chat history sidebar hidden for maximized focus
-          </span>
-        )}
-      </div>
-
-      {/* Main 3-Column Classroom Layout (Maximized Canvas, Layout Isolation) */}
+      {/* Main 3-Column Classroom Layout (Maximized Video Canvas, Zero Clutter) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
         
         {/* =========================================================================
@@ -1120,258 +921,15 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
 
 
         {/* =========================================================================
-            CENTER COLUMN: DYNAMIC DELIVERY PATH CANVAS (SLIDE+AI, VIDEO+AI, INTELLICOACH, 1-ON-1, CAMPS)
+            CENTER COLUMN: EXPANDED PRO VIDEO CANVAS & DYNAMIC SUBTITLE DETAILS (lg:col-span-6 xl:col-span-6)
         ========================================================================= */}
-        <main className={`${isChatSidebarHidden ? 'lg:col-span-9 xl:col-span-9' : 'lg:col-span-6 xl:col-span-6'} flex flex-col gap-4`}>
+        <main className="lg:col-span-6 xl:col-span-6 flex flex-col gap-4">
           
-          {activeDeliveryPath === 'SLIDE_AI' ? (
-            /* =========================================================================
-                SLIDE + AI DELIVERY PATH (Strict Layout Rule: Left Chat Sidebar Hidden)
-            ========================================================================= */
-            <div className="w-full bg-slate-900 rounded-3xl overflow-hidden shadow-xl border border-slate-800 flex flex-col text-white">
-              {/* Slide Header Toolbar */}
-              <div className="px-5 py-3.5 bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 border-b border-indigo-900/40 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse" />
-                  <span className="text-xs font-black text-white">{activeCourse.name}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-400/30">
-                    Slide + AI Studio
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowBookDrawer(!showBookDrawer)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                      showBookDrawer ? 'bg-amber-400 text-slate-950 font-black' : 'bg-white/10 hover:bg-white/20 text-slate-200'
-                    }`}
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>{showBookDrawer ? 'Hide Study Book' : 'Study Book Reference'}</span>
-                  </button>
-
-                  <span className="text-xs font-mono font-bold text-slate-300 px-2.5 py-1 bg-white/10 rounded-lg">
-                    Slide {slideIndex + 1} / {lessonSlides.length}
-                  </span>
-                </div>
-              </div>
-
-              {/* Main Slide Presentation Canvas */}
-              <div className="p-6 md:p-8 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col justify-between min-h-[440px] space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase text-indigo-400 tracking-wider">
-                      Curriculum Concept Slide Deck
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono">CEFR Target: {activeCourse.top_title || 'Level A1–B2'}</span>
-                  </div>
-
-                  <h3 className="text-xl md:text-2xl font-black text-white leading-tight">
-                    {lessonSlides[slideIndex].title}
-                  </h3>
-
-                  {/* Rule Highlight Callout */}
-                  <div className="p-4 rounded-2xl bg-indigo-950/60 border border-indigo-800/60 space-y-1">
-                    <div className="text-[10px] font-black uppercase text-amber-300">Grammar & Syntax Rule</div>
-                    <p className="text-sm font-semibold text-indigo-100">{lessonSlides[slideIndex].rule}</p>
-                  </div>
-
-                  {/* Audio Drill & Phonetic Examples */}
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-bold text-slate-400">Audio Drill & Phonetic Articulation:</div>
-                    <div className="flex flex-wrap gap-2">
-                      {lessonSlides[slideIndex].examples.map((ex, exIdx) => (
-                        <div key={exIdx} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs text-white font-mono flex items-center gap-2">
-                          <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>{ex}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Whiteboard Notes */}
-                  <div className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300 space-y-1">
-                    <div className="text-[10px] font-mono text-zinc-500 uppercase">Whiteboard Synthesis Notes:</div>
-                    <div>{lessonSlides[slideIndex].whiteboardNotes}</div>
-                  </div>
-                </div>
-
-                {/* Book Reference Drawer when open */}
-                {showBookDrawer && (
-                  <div className="p-4 rounded-2xl bg-amber-950/80 border border-amber-500/50 text-amber-200 text-xs space-y-1 animate-in fade-in">
-                    <div className="font-black text-amber-400 flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4" /> Official Study Book Notes & Chapter Lexicon
-                    </div>
-                    <p className="text-xs text-amber-100 leading-relaxed">
-                      {lessonSlides[slideIndex].bookReference}
-                    </p>
-                  </div>
-                )}
-
-                {/* Slide Navigation Footer Bar */}
-                <div className="flex items-center justify-between border-t border-slate-800 pt-4 flex-wrap gap-2">
-                  <button
-                    onClick={() => setSlideIndex(prev => Math.max(0, prev - 1))}
-                    disabled={slideIndex === 0}
-                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 text-xs font-bold text-white transition-all cursor-pointer"
-                  >
-                    ← Previous Slide
-                  </button>
-
-                  <div className="flex items-center gap-1.5">
-                    {lessonSlides.map((_, dotIdx) => (
-                      <button
-                        key={dotIdx}
-                        onClick={() => setSlideIndex(dotIdx)}
-                        className={`w-2.5 h-2.5 rounded-full transition-all cursor-pointer ${
-                          slideIndex === dotIdx ? 'bg-amber-400 scale-125' : 'bg-white/20 hover:bg-white/40'
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => setSlideIndex(prev => Math.min(lessonSlides.length - 1, prev + 1))}
-                    disabled={slideIndex === lessonSlides.length - 1}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-xs font-bold text-white transition-all cursor-pointer shadow-md"
-                  >
-                    Next Slide →
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : activeDeliveryPath === 'ONE_ON_ONE' ? (
-            /* =========================================================================
-                1-TO-1 COACHING SESSION DELIVERY PATH
-            ========================================================================= */
-            <div className="w-full bg-slate-900 rounded-3xl overflow-hidden shadow-xl border border-slate-800 flex flex-col text-white p-5 md:p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <h3 className="text-sm font-black text-white">1-to-1 Private Coaching Session Studio</h3>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-bold">
-                  Lead Instructor: {activeCourse.staff}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-5 rounded-2xl bg-black border border-slate-800 flex flex-col items-center justify-center min-h-[220px] text-center space-y-3">
-                  <div className="w-14 h-14 rounded-full bg-emerald-600/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 font-bold">
-                    <Users className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <div className="font-black text-sm text-white">Private Audio/Video Coaching Room</div>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Direct 1-on-1 coaching for oral FSP medical defense, job interview rehearsal, and thesis defense.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => alert(`Starting 1-to-1 coaching room for ${activeCourse.name}...`)}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition-all hover:scale-105"
-                  >
-                    Launch 1-to-1 Live Room
-                  </button>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
-                  <div className="font-black text-amber-300 text-[11px] uppercase tracking-wider">
-                    Today's Session Roadmap:
-                  </div>
-                  <ul className="space-y-2 text-slate-300 text-[11px]">
-                    <li className="flex items-center gap-1.5 text-emerald-400">
-                      ✓ <span>10m: Pronunciation diagnostics & accent acoustic tuning</span>
-                    </li>
-                    <li className="flex items-center gap-1.5 text-emerald-400">
-                      ✓ <span>20m: Simulated Doctor-Patient anamnesis dialogue</span>
-                    </li>
-                    <li className="flex items-center gap-1.5 text-slate-300">
-                      • <span>15m: Technical review & customized homework drills</span>
-                    </li>
-                  </ul>
-                  <div className="pt-3 border-t border-slate-800 text-[10px] text-slate-400">
-                    Next Scheduled Session: Tomorrow at 10:00 AM CET with {activeCourse.staff}.
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : activeDeliveryPath === 'CAMPS_SPORTS' ? (
-            /* =========================================================================
-                CAMPS & SPORTS CLASSES DELIVERY PATH (Online Drills vs Offline Stadium)
-            ========================================================================= */
-            <div className="w-full bg-slate-900 rounded-3xl overflow-hidden shadow-xl border border-slate-800 flex flex-col text-white p-5 md:p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-rose-400" />
-                  <h3 className="text-sm font-black text-white">Camps & Athletic Training Studio</h3>
-                </div>
-                
-                {/* Sub-categorization into Online and Offline modes */}
-                <div className="flex items-center bg-black/50 p-1 rounded-xl border border-slate-700">
-                  <button
-                    onClick={() => setCampTab('Online')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      campTab === 'Online' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Online Mode (Drills)
-                  </button>
-                  <button
-                    onClick={() => setCampTab('Offline')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      campTab === 'Offline' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Offline Mode (Stadium Venue)
-                  </button>
-                </div>
-              </div>
-
-              {campTab === 'Online' ? (
-                <div className="p-5 rounded-2xl bg-black border border-slate-800 space-y-3">
-                  <div className="text-xs font-bold text-rose-300">Online Live Conditioning & Tactical Stream</div>
-                  <p className="text-xs text-slate-300">High-intensity functional conditioning routines and live tactical positioning drills streamed in Full-HD.</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs pt-1">
-                    <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-center">
-                      <span className="text-[10px] text-slate-400 uppercase font-black">Warm-up Drill</span>
-                      <div className="font-bold text-white mt-1">15 Mins Cardio & Agility</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-center">
-                      <span className="text-[10px] text-slate-400 uppercase font-black">Tactical Strategy</span>
-                      <div className="font-bold text-white mt-1">Movement Analysis</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 text-center">
-                      <span className="text-[10px] text-slate-400 uppercase font-black">Cooldown</span>
-                      <div className="font-bold text-white mt-1">Mobility Routine</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-5 rounded-2xl bg-black border border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-rose-300">Offline Stadium & Venue Allocation</span>
-                    <span className="px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-mono">Biometric Gate: Active</span>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs space-y-2">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-rose-400 shrink-0" />
-                      <span className="font-bold text-white">{activeCourse.campVenue || 'ILA Sports Complex & Arena (Pitch 4)'}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-400 pl-6">
-                      Check-in Requirement: Digital QR Pass or Biometric RFID Card scan at Stadium Entrance Gate A.
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* =========================================================================
-                VIDEO + AI / INTELLICOACH VIDEO SCREEN (Canvas View)
-            ========================================================================= */
-            <div 
-              ref={playerContainerRef}
-              className="w-full bg-black rounded-2xl overflow-hidden shadow-xl border border-zinc-800 flex flex-col relative text-white"
-            >
+          {/* Main Professional Video Player Screen */}
+          <div 
+            ref={playerContainerRef}
+            className="w-full bg-black rounded-2xl overflow-hidden shadow-xl border border-zinc-800 flex flex-col relative text-white"
+          >
             
             {/* Top Stream Status Overlay & Testing Controls */}
             <div className="px-4 py-2.5 bg-gradient-to-b from-black/95 via-black/60 to-transparent flex flex-wrap items-center justify-between gap-2 z-20">
@@ -1805,16 +1363,13 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
             </div>
 
           </div>
-          )}
 
         </main>
 
 
         {/* =========================================================================
             RIGHT COLUMN: TUTOR / CHAT / CHAPTER SUB-TITLES (lg:col-span-3 xl:col-span-3)
-            Strict Layout Rule: left/right chat sidebar must remain hidden in Slide+AI and Video+AI views
         ========================================================================= */}
-        {!isChatSidebarHidden && (
         <aside className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3.5">
           
           {/* 1. Live Tutor Header */}
@@ -2006,7 +1561,6 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           </div>
 
         </aside>
-        )}
 
       </div>
 
@@ -2145,14 +1699,6 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
                 <span className="hidden sm:inline">List</span>
               </button>
             </div>
-
-            <button
-              onClick={() => setShowCreateCoursePathModal(true)}
-              className="px-3.5 py-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white text-xs font-black rounded-2xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer ring-1 ring-white/20"
-              title="Create Course & Path: Bridge directly to Course Creator Engine Hub"
-            >
-              <PlusCircle className="w-3.5 h-3.5" /> <span>Create Course & Path</span>
-            </button>
 
             <button
               onClick={() => onNavigateTab?.('AI COURSE CREATOR')}
@@ -2575,21 +2121,6 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           </div>
         </div>
       )}
-
-      {/* Create Course & Path Modal Bridge */}
-      <CreateCourseAndPathModal 
-        isOpen={showCreateCoursePathModal}
-        onClose={() => setShowCreateCoursePathModal(false)}
-        onLaunchEngineHub={(params) => {
-          setShowCreateCoursePathModal(false);
-          onNavigateTab?.('ENGINE HUB');
-        }}
-        onSavedToLibrary={() => {
-          setShowCreateCoursePathModal(false);
-          const dbCourses = getGlobalCourses();
-          setCourses(dbCourses);
-        }}
-      />
 
     </div>
   );

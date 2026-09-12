@@ -14,8 +14,7 @@ import {
   toggleCommTriggerWorkflow,
   getCommDispatchLogs,
   simulateTestTrigger,
-  getCommTriggerMetrics,
-  getDropOffLeads
+  getCommTriggerMetrics
 } from '../../lib/db';
 
 interface AutomatedCommTriggersHubProps {
@@ -158,32 +157,6 @@ export const AutomatedCommTriggersHub: React.FC<AutomatedCommTriggersHubProps> =
       setSimFeedback(`✅ Trigger fired! Live payload dispatched via ${result.channel} to ${result.recipientName}.`);
       setTimeout(() => setSimFeedback(null), 5000);
     }
-  };
-
-  const [dropOffPromoNotice, setDropOffPromoNotice] = useState<string | null>(null);
-
-  const handleDispatchDropOffCampaign = () => {
-    const dropOffs = getDropOffLeads();
-    if (dropOffs.length === 0) {
-      setDropOffPromoNotice('ℹ️ No drop-off leads currently recorded in database.');
-      setTimeout(() => setDropOffPromoNotice(null), 4000);
-      return;
-    }
-
-    let dispatchedCount = 0;
-    dropOffs.forEach((lead) => {
-      simulateTestTrigger('trig-promo-reengage', {
-        name: lead.name,
-        email: lead.email,
-        phone: lead.phone,
-        courseOrBatch: lead.course || 'Special Fast-Track Cohort'
-      });
-      dispatchedCount++;
-    });
-
-    setDropOffPromoNotice(`🚀 Automated Campaign Dispatched to ${dispatchedCount} retained drop-off lead(s) with 20% scholarship link!`);
-    loadData();
-    setTimeout(() => setDropOffPromoNotice(null), 6000);
   };
 
   const handleCopyTemplate = (text: string, id: string) => {
@@ -430,14 +403,7 @@ export const AutomatedCommTriggersHub: React.FC<AutomatedCommTriggersHubProps> =
                 Trigger rules automatically run when students register, complete partial intakes, or have upcoming classes.
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleDispatchDropOffCampaign}
-                className="text-xs font-black text-white bg-gradient-to-r from-amber-600 to-rose-600 hover:from-amber-500 hover:to-rose-500 px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                title="Dispatch Promotional Re-engagement Campaign to all incomplete/drop-off leads"
-              >
-                <Flame className="w-3.5 h-3.5" /> <span>Trigger Drop-off Promo Blast</span>
-              </button>
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => handleOpenRuleModal()}
                 className="text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
@@ -452,13 +418,6 @@ export const AutomatedCommTriggersHub: React.FC<AutomatedCommTriggersHubProps> =
               </button>
             </div>
           </div>
-
-          {dropOffPromoNotice && (
-            <div className="p-3.5 rounded-2xl bg-amber-950/80 border border-amber-500/50 text-amber-200 text-xs font-bold flex items-center gap-2 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>{dropOffPromoNotice}</span>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {workflows.map((wf) => {

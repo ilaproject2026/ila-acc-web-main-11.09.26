@@ -4,8 +4,7 @@ import {
   Calendar, CheckCircle2, Search, ArrowUpRight, 
   Phone, Mail, MessageSquare, Ticket, Globe, 
   Trash2, SlidersHorizontal, LayoutGrid, List,
-  Clock, ShieldAlert, Sparkles, Filter, Type,
-  Send, Link2, AlertTriangle
+  Clock, ShieldAlert, Sparkles, Filter, Type
 } from 'lucide-react';
 import { 
   getInquiries, 
@@ -15,8 +14,6 @@ import {
   updateInquiryVisaStage,
   getStaffRegistry, 
   getDailyWalkinStats, 
-  confirmPaymentAndDispatchWelcomeLink,
-  markInquiryAsDropOff,
   Inquiry, 
   StaffUser 
 } from '../../../lib/db';
@@ -46,8 +43,6 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
   const [staffFilter, setStaffFilter] = useState<string>('All');
   const [followUpFilter, setFollowUpFilter] = useState<string>('All');
   const [paymentFilter, setPaymentFilter] = useState<string>('All');
-  const [dropOffFilter, setDropOffFilter] = useState<string>('All');
-  const [actionSuccessNotice, setActionSuccessNotice] = useState<string | null>(null);
 
   // Modals
   const [showIntakeModal, setShowIntakeModal] = useState(false);
@@ -96,12 +91,7 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
       paymentFilter === 'All' || 
       item.paymentStatus === paymentFilter;
 
-    const matchesDropOff = 
-      dropOffFilter === 'All' ||
-      (dropOffFilter === 'Drop-offs Only' && item.isDropOff) ||
-      (dropOffFilter === 'Active Leads' && !item.isDropOff);
-
-    return matchesSearch && matchesDept && matchesMode && matchesStaff && matchesFollowUp && matchesPayment && matchesDropOff;
+    return matchesSearch && matchesDept && matchesMode && matchesStaff && matchesFollowUp && matchesPayment;
   });
 
   const handleDelete = (id: string, name: string) => {
@@ -119,25 +109,6 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
 
   const handlePaymentChange = (inquiryId: string, status: Inquiry['paymentStatus']) => {
     updateInquiryStatus(inquiryId, status);
-  };
-
-  const handleConfirmPaymentAndSendLink = (inquiryId: string, studentName: string, courseName: string) => {
-    const res = confirmPaymentAndDispatchWelcomeLink(inquiryId);
-    if (res.success) {
-      setActionSuccessNotice(`✅ Payment confirmed for ${studentName}! Direct access link dispatched via Email & SMS:\n${res.secureLink}`);
-      setTimeout(() => setActionSuccessNotice(null), 8000);
-      loadData();
-    }
-  };
-
-  const handleMarkDropOff = (inquiryId: string, studentName: string) => {
-    const reason = prompt(`Enter drop-off reason for ${studentName} (e.g., Budget constraint, Timings conflict):`, 'Price sensitivity / deferred enrollment');
-    if (reason) {
-      markInquiryAsDropOff(inquiryId, reason);
-      setActionSuccessNotice(`📌 ${studentName} logged as Drop-off. Phone & Email retained for automated promotional campaigns.`);
-      setTimeout(() => setActionSuccessNotice(null), 6000);
-      loadData();
-    }
   };
 
   return (
@@ -353,30 +324,7 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
             </select>
           </div>
 
-          {/* Drop-off / Lead Retention Filter */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Lead Retention</label>
-            <select
-              value={dropOffFilter}
-              onChange={(e) => setDropOffFilter(e.target.value)}
-              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none cursor-pointer"
-            >
-              <option value="All">All Inquiries</option>
-              <option value="Active Leads">Active Pipeline</option>
-              <option value="Drop-offs Only">⚠️ Incomplete / Drop-offs</option>
-            </select>
-          </div>
-
         </div>
-
-        {actionSuccessNotice && (
-          <div className="p-3.5 bg-emerald-950/90 border border-emerald-500/50 rounded-2xl text-xs text-emerald-200 flex items-start gap-2.5 shadow-lg animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-            <div className="font-mono whitespace-pre-line text-[11px] leading-relaxed">
-              {actionSuccessNotice}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 4. Main Data View (Table or Kanban) */}
@@ -516,31 +464,6 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </a>
-
-                          {/* Automated Link Distribution & Payment Confirmation (Phase B) */}
-                          <button
-                            onClick={() => handleConfirmPaymentAndSendLink(inq.id, inq.name, inq.course)}
-                            className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-black text-[10px] flex items-center gap-1 cursor-pointer shadow-xs"
-                            title="Confirm Payment & Auto-Dispatch Secure Course Link via Email/SMS"
-                          >
-                            <Send className="w-3 h-3" />
-                            <span className="hidden xl:inline">Confirm & Link</span>
-                          </button>
-
-                          {/* Drop-off Flagging for Automated Promotional Triggers */}
-                          {!inq.isDropOff ? (
-                            <button
-                              onClick={() => handleMarkDropOff(inq.id, inq.name)}
-                              className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg cursor-pointer transition-colors"
-                              title="Mark as Drop-off (Retain Phone/Email for Automated Campaigns)"
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black" title={inq.dropOffReason || 'Drop-off lead'}>
-                              Drop-off
-                            </span>
-                          )}
 
                           {onNavigateDepartment && (
                             <button

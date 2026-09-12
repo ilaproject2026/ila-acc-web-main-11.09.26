@@ -50,9 +50,6 @@ export interface Inquiry {
   followUpStatus?: 'Due Today' | 'Overdue' | 'Scheduled' | 'Completed' | 'Pending';
   followUpHistory?: FollowUpRecord[];
   visaProcessingStage?: 'Not Applicable' | 'Profile Assessment' | 'APS Certificate' | 'Blocked Account' | 'Embassy Appointment' | 'Visa Approved' | 'Visa Rejected';
-  dropOffReason?: string;
-  isDropOff?: boolean;
-  secureAccessLink?: string;
 }
 
 export interface VisitorLog {
@@ -126,12 +123,6 @@ export const generateUniqueCode = (prefix: string, name: string): string => {
     .substring(0, 4) || 'GEN';
   const randomNum = Math.floor(100 + Math.random() * 900);
   return `${cleanPrefix}-${slug}-${randomNum}`;
-};
-
-export const generateSecureCourseLink = (courseId: string, accessCode?: string): string => {
-  const code = accessCode || `SEC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'https://ilas.global';
-  return `${origin}/#student-dashboard?courseId=${courseId}&token=${code}`;
 };
 
 export interface GlobalPath {
@@ -475,8 +466,6 @@ export interface AICoursePayload {
   }[];
 }
 
-export type CourseDeliveryFormat = 'SLIDE_AI' | 'VIDEO_AI' | 'INTELLI_COACH' | 'ONE_ON_ONE' | 'CAMPS_SPORTS';
-
 export interface GlobalCourse {
   id: string;
   name: string;
@@ -486,14 +475,6 @@ export interface GlobalCourse {
   displayPosition: number;
   viewType?: 'Main View' | 'Blocks View' | 'Both';
   aiLibrarySection?: 'Intelli Coach Classes' | 'Video + AI Answering Classes';
-  deliveryFormats?: CourseDeliveryFormat[];
-  campMode?: 'Online' | 'Offline' | 'Hybrid';
-  campVenue?: string;
-  campSessionTimings?: string;
-  secureAccessCode?: string;
-  secureAccessLink?: string;
-  engineHubSyncStatus?: 'Linked' | 'Synced' | 'Standalone';
-  engineHubUrl?: string;
   teachingStrategies?: string[];
   studentAnalyzingStrategies?: StudentAnalyzingStrategy[];
   multimediaConditions?: {
@@ -917,28 +898,13 @@ export const setGlobalStudentAnalyzingStrategies = (strategies: StudentAnalyzing
   window.dispatchEvent(new CustomEvent('ilas-student-analyzing-strategies-changed'));
 };
 
-const enrichCourseHelper = (c: GlobalCourse): GlobalCourse => {
-  const code = c.secureAccessCode || generateUniqueCode('SEC', c.name);
-  return {
-    ...c,
-    deliveryFormats: c.deliveryFormats && c.deliveryFormats.length > 0 
-      ? c.deliveryFormats 
-      : ['SLIDE_AI', 'VIDEO_AI', 'INTELLI_COACH', 'ONE_ON_ONE', 'CAMPS_SPORTS'],
-    campMode: c.campMode || (c.name.toLowerCase().includes('camp') || c.category?.toLowerCase().includes('camp') ? 'Offline' : 'Online'),
-    campVenue: c.campVenue || (c.name.toLowerCase().includes('camp') ? 'ILA Sports Complex & Arena' : undefined),
-    secureAccessCode: code,
-    secureAccessLink: c.secureAccessLink || generateSecureCourseLink(c.id, code),
-    engineHubSyncStatus: c.engineHubSyncStatus || 'Synced'
-  };
-};
-
 export const getGlobalCourses = (): GlobalCourse[] => {
   const data = localStorage.getItem('ilas_courses');
   if (data) {
     try {
       const parsed: GlobalCourse[] = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.some(c => c.name === 'German Language Test 1')) {
-        return parsed.map(enrichCourseHelper).sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
+        return parsed.sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
       }
     } catch (e) {
       console.warn('Failed to parse ilas_courses from localStorage, resetting to seed:', e);
@@ -1109,14 +1075,12 @@ export const getGlobalCourses = (): GlobalCourse[] => {
       courseStructure: 'Unit 1: Doctor-Patient Consultations\nUnit 2: Medical History (Anamnese) Intake\nUnit 3: Clinical Documentation (Arztbrief)\nUnit 4: Mock Examination Panels' 
     }
   ];
-  const enrichedSeed = seed.map(enrichCourseHelper);
-  localStorage.setItem('ilas_courses', JSON.stringify(enrichedSeed));
-  return enrichedSeed.sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
+  localStorage.setItem('ilas_courses', JSON.stringify(seed));
+  return seed.sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
 };
 
 export const setGlobalCourses = (courses: GlobalCourse[]) => {
-  const enriched = courses.map(enrichCourseHelper);
-  const sorted = [...enriched].sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
+  const sorted = [...courses].sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
   localStorage.setItem('ilas_courses', JSON.stringify(sorted));
   window.dispatchEvent(new CustomEvent('ilas-courses-changed'));
 };
@@ -1230,29 +1194,6 @@ export const sendClassLink = (id: string, link: string): Inquiry[] => {
   localStorage.setItem('ilas_inquiries', JSON.stringify(updated));
   window.dispatchEvent(new CustomEvent('ilas-inquiries-changed'));
   return updated;
-};
-
-export const markInquiryAsDropOff = (id: string, reason?: string): Inquiry[] => {
-  const inquiries = getInquiries();
-  const updated = inquiries.map(item => {
-    if (item.id === id) {
-      return { 
-        ...item, 
-        isDropOff: true, 
-        dropOffReason: reason || 'Inquiry dropped off before completion - retained for automated promotional follow-up',
-        crmStatus: 'Closed Lost' as const
-      };
-    }
-    return item;
-  });
-  localStorage.setItem('ilas_inquiries', JSON.stringify(updated));
-  window.dispatchEvent(new CustomEvent('ilas-inquiries-changed'));
-  return updated;
-};
-
-export const getDropOffLeads = (): Inquiry[] => {
-  const inquiries = getInquiries();
-  return inquiries.filter(i => i.isDropOff || i.crmStatus === 'Closed Lost' || (i.paymentStatus === 'Pending' && !i.amountPaid));
 };
 
 export const getVisitorLogs = (): VisitorLog[] => {
@@ -2076,173 +2017,6 @@ export const simulateTestTrigger = (
     status: 'Delivered',
     messagePreview: personalizedPreview
   });
-};
-
-export const confirmPaymentAndDispatchWelcomeLink = (
-  inquiryIdOrSaleId: string, 
-  courseId?: string
-): { success: boolean; link: string; secureLink: string; studentName: string } => {
-  const inquiries = getInquiries();
-  const courses = getGlobalCourses();
-  
-  const inq = inquiries.find(i => i.id === inquiryIdOrSaleId);
-  const matchedCourse = courses.find(c => 
-    (courseId && c.id === courseId) || 
-    (inq && inq.course && (c.name.toLowerCase().includes(inq.course.toLowerCase()) || inq.course.toLowerCase().includes(c.name.toLowerCase())))
-  ) || courses[0];
-  
-  const secureLink = generateSecureCourseLink(matchedCourse.id, matchedCourse.secureAccessCode);
-  
-  if (inq) {
-    const updated = inquiries.map(item => {
-      if (item.id === inq.id) {
-        return {
-          ...item,
-          paymentStatus: 'Paid' as const,
-          amountPaid: item.totalAmount || item.price || '$199.00',
-          classLink: secureLink,
-          secureAccessLink: secureLink
-        };
-      }
-      return item;
-    });
-    localStorage.setItem('ilas_inquiries', JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent('ilas-inquiries-changed'));
-  }
-  
-  const studentName = inq ? inq.name : 'Student';
-  const studentEmail = inq ? inq.email : 'student@ilas.global';
-  const studentPhone = inq ? inq.phone : '+49 176 123456';
-  
-  addCommDispatchLog({
-    triggerId: 'trig-welcome-payment-link',
-    triggerName: 'Payment Confirmed - Secure Course Link Auto-Delivery',
-    category: 'Welcome & Onboarding',
-    recipientName: studentName,
-    recipientEmail: studentEmail,
-    recipientPhone: studentPhone,
-    courseOrBatch: matchedCourse.name,
-    channel: 'Email',
-    status: 'Delivered',
-    messagePreview: `Willkommen ${studentName}! Your enrollment payment for ${matchedCourse.name} is confirmed. Here is your unique secure course access link: ${secureLink}`
-  });
-  
-  addCommDispatchLog({
-    triggerId: 'trig-welcome-payment-link-sms',
-    triggerName: 'Payment Confirmed - SMS Quick Access',
-    category: 'Welcome & Onboarding',
-    recipientName: studentName,
-    recipientEmail: studentEmail,
-    recipientPhone: studentPhone,
-    courseOrBatch: matchedCourse.name,
-    channel: 'SMS',
-    status: 'Delivered',
-    messagePreview: `ILAS Academy: Hi ${studentName}, your access to ${matchedCourse.name} is ready! Click to launch your classroom: ${secureLink}`
-  });
-  
-  return {
-    success: true,
-    link: secureLink,
-    secureLink: secureLink,
-    studentName
-  };
-};
-
-export interface StudentComplianceLog {
-  id: string;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  courseId: string;
-  courseName: string;
-  deliveryPath: string;
-  eventType: 'Login Session' | 'Module Milestone Completed' | 'Session Attendance' | 'Biometric Check-in';
-  timestamp: string;
-  details: string;
-  complianceStatus: 'Verified' | 'Completed' | 'Pending Review';
-  sessionMode?: 'Online' | 'Offline';
-}
-
-export const getStudentComplianceLogs = (): StudentComplianceLog[] => {
-  const data = localStorage.getItem('ilas_student_compliance_logs');
-  if (data) {
-    try {
-      return JSON.parse(data);
-    } catch(e) {}
-  }
-  const seedLogs: StudentComplianceLog[] = [
-    {
-      id: 'comp-101',
-      studentId: 's1',
-      studentName: 'Ananya Sharma',
-      studentEmail: 'ananya.sharma@example.com',
-      courseId: '1',
-      courseName: 'German Language Test 1',
-      deliveryPath: 'IntelliCoach AI',
-      eventType: 'Login Session',
-      timestamp: new Date(Date.now() - 3600000).toLocaleString(),
-      details: 'Active learner authentication via secure single-sign link. Session duration: 45m.',
-      complianceStatus: 'Verified',
-      sessionMode: 'Online'
-    },
-    {
-      id: 'comp-102',
-      studentId: 's1',
-      studentName: 'Ananya Sharma',
-      studentEmail: 'ananya.sharma@example.com',
-      courseId: '1',
-      courseName: 'German Language Test 1',
-      deliveryPath: 'Slide + AI',
-      eventType: 'Module Milestone Completed',
-      timestamp: new Date(Date.now() - 7200000).toLocaleString(),
-      details: 'Completed Module 1: CEFR A1 Fundamentals, Phonetics & Survival Vocabulary (100% completion).',
-      complianceStatus: 'Completed',
-      sessionMode: 'Online'
-    },
-    {
-      id: 'comp-103',
-      studentId: 's2',
-      studentName: 'Lukas Meyer',
-      studentEmail: 'lukas.m@tum.de',
-      courseId: '2',
-      courseName: 'IELTS Test 2',
-      deliveryPath: 'Video + AI',
-      eventType: 'Session Attendance',
-      timestamp: new Date(Date.now() - 14400000).toLocaleString(),
-      details: 'Attended live Cambridge Listening module and AI essay review.',
-      complianceStatus: 'Verified',
-      sessionMode: 'Online'
-    },
-    {
-      id: 'comp-104',
-      studentId: 's3',
-      studentName: 'Felix Braun',
-      studentEmail: 'felix.braun@munich-athletics.de',
-      courseId: 'camps-1',
-      courseName: 'Youth Football & High-Performance Athletic Conditioning Camp',
-      deliveryPath: 'Camps & Sports Classes (Offline)',
-      eventType: 'Biometric Check-in',
-      timestamp: new Date(Date.now() - 86400000).toLocaleString(),
-      details: 'Biometric RFID gate verification at Munich Olympic Park Arena, Pitch 4. Coach: Marcus Weber.',
-      complianceStatus: 'Verified',
-      sessionMode: 'Offline'
-    }
-  ];
-  localStorage.setItem('ilas_student_compliance_logs', JSON.stringify(seedLogs));
-  return seedLogs;
-};
-
-export const logStudentComplianceEvent = (event: Omit<StudentComplianceLog, 'id' | 'timestamp'>): StudentComplianceLog => {
-  const logs = getStudentComplianceLogs();
-  const newLog: StudentComplianceLog = {
-    ...event,
-    id: `comp-${Math.random().toString(36).substring(2, 8)}`,
-    timestamp: new Date().toLocaleString()
-  };
-  const updated = [newLog, ...logs];
-  localStorage.setItem('ilas_student_compliance_logs', JSON.stringify(updated.slice(0, 200)));
-  window.dispatchEvent(new CustomEvent('ilas-compliance-logs-changed'));
-  return newLog;
 };
 
 export const getCommTriggerMetrics = () => {
