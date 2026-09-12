@@ -25,11 +25,17 @@ import EducationPage from './pages/EducationPage'
 import ApplicationPoolPage from './pages/ApplicationPoolPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import CookieBanner from './components/common/CookieBanner'
+import { initFontSettings } from './lib/fontManager'
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home')
   const [activeCourseTitle, setActiveCourseTitle] = useState('')
   const [activeCourseCategory, setActiveCourseCategory] = useState('')
+
+  // Universal Typography & Theme Persistence across all routes and module pages
+  useEffect(() => {
+    initFontSettings();
+  }, [currentPage]);
 
   useEffect(() => {
     const startTime = Date.now();

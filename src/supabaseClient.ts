@@ -7,7 +7,10 @@ const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
-  supabaseUrl !== 'https://placeholder-project.supabase.co'
+  !supabaseUrl.includes('placeholder') &&
+  !supabaseUrl.includes('your-project') &&
+  !supabaseAnonKey.includes('placeholder') &&
+  !supabaseAnonKey.includes('your-anon-key')
 );
 
 if (!isSupabaseConfigured) {

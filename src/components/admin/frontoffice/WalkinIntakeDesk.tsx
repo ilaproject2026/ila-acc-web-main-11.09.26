@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { 
   UserPlus, Users, Clock, CheckCircle2, 
   Search, Eye, Plus, ArrowUpRight,
-  Ticket, Building2
+  Ticket, Building2, Type
 } from 'lucide-react';
 import { getInquiries, updateInquiryStatus, Inquiry } from '../../../lib/db';
 import ClientIntakeModal from './ClientIntakeModal';
+import FontSettingsModal from './FontSettingsModal';
 
 interface WalkinIntakeDeskProps {
   onNavigateDepartment?: (deptTab: string) => void;
@@ -16,6 +17,7 @@ export default function WalkinIntakeDesk({ onNavigateDepartment }: WalkinIntakeD
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('All');
   const [showIntakeModal, setShowIntakeModal] = useState(false);
+  const [showFontModal, setShowFontModal] = useState(false);
   const [selectedInquiryDetail, setSelectedInquiryDetail] = useState<Inquiry | null>(null);
 
   const loadWalkins = () => {
@@ -69,6 +71,16 @@ export default function WalkinIntakeDesk({ onNavigateDepartment }: WalkinIntakeD
         </div>
 
         <div className="flex flex-wrap gap-3 relative z-10">
+          <button
+            type="button"
+            onClick={() => setShowFontModal(true)}
+            className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-2xl border border-slate-700 flex items-center gap-2 cursor-pointer shadow-xs transition-all group"
+            title="Adjust Front Office Font Family, Weight & Scale"
+          >
+            <Type className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span>Font Settings</span>
+          </button>
+
           <button
             onClick={() => setShowIntakeModal(true)}
             className="px-5 py-3 bg-brand-600 hover:bg-brand-500 text-white font-black text-xs rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2 cursor-pointer"
@@ -386,6 +398,12 @@ export default function WalkinIntakeDesk({ onNavigateDepartment }: WalkinIntakeD
         onClose={() => setShowIntakeModal(false)}
         defaultType="Walk-in"
         onNavigateDepartment={onNavigateDepartment}
+      />
+
+      {/* Font Settings Modal */}
+      <FontSettingsModal
+        isOpen={showFontModal}
+        onClose={() => setShowFontModal(false)}
       />
 
     </div>

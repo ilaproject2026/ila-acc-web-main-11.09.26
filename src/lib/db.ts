@@ -36,6 +36,9 @@ export interface Inquiry {
   assignedStaffId?: string;
   assignedStaffName?: string;
   intakeNotes?: string;
+  resumeUrl?: string;
+  resumeFileName?: string;
+  resumeFileSize?: string;
   visitorDetails?: {
     purpose?: string;
     accompaniedBy?: number;

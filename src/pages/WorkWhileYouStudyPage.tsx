@@ -31,6 +31,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { getWorkStudyPackages, WorkStudyPackage } from '../lib/db';
+import WorkStudyCourseModal, { WorkStudySelectionData } from '../components/common/WorkStudyCourseModal';
 
 const jobCategories = [
   {
@@ -353,6 +354,31 @@ export default function WorkWhileYouStudyPage() {
     window.location.hash = url; 
   };
 
+  // Pre-Application Course Selection Modal State
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [modalInitialCourse, setModalInitialCourse] = useState<string | undefined>(undefined);
+  const [modalInitialTrack, setModalInitialTrack] = useState<string | undefined>(undefined);
+  const [modalInitialDomain, setModalInitialDomain] = useState<string | undefined>(undefined);
+
+  const handleOpenCourseModal = (course?: string, track?: string, domain?: string) => {
+    setModalInitialCourse(course);
+    setModalInitialTrack(track);
+    setModalInitialDomain(domain);
+    setIsCourseModalOpen(true);
+  };
+
+  const handleCourseSelectionConfirmed = (data: WorkStudySelectionData) => {
+    setIsCourseModalOpen(false);
+    const params = new URLSearchParams({
+      service: 'work-while-you-study',
+      course: data.course,
+      category: data.category,
+      track: data.track,
+      domain: data.domain
+    });
+    window.location.hash = `#applications?${params.toString()}`;
+  };
+
   const handleTabSwitch = (tab: BlockTabType) => {
     setActiveTab(tab);
     // Smooth scroll to the content showcase container
@@ -365,6 +391,12 @@ export default function WorkWhileYouStudyPage() {
 
   const activeAbroad = studyAbroadServices.find(s => s.id === selectedAbroadService) || studyAbroadServices[0];
   const AbroadIcon = activeAbroad.icon;
+
+  const activeTabLabel = 
+    activeTab === 'work-in-india' ? 'Work & Study in India' :
+    activeTab === 'work-in-abroad' ? 'Work & Study in Abroad' :
+    activeTab === 'german-projects' ? 'German Onboarding Projects' :
+    'Reward & Study / Earning Platforms';
 
   return (
     <div className="pt-20 bg-slate-100 min-h-screen">
@@ -398,7 +430,7 @@ export default function WorkWhileYouStudyPage() {
 
             <div className="flex items-center gap-3 shrink-0">
               <button
-                onClick={() => navigateTo('#applications?tab=Work While You Study')}
+                onClick={() => handleOpenCourseModal()}
                 className="px-6 py-3 rounded-xl bg-slate-950 hover:bg-slate-900 text-amber-300 hover:text-white text-xs font-black transition-all shadow-xl shadow-slate-950/30 flex items-center gap-1.5 cursor-pointer hover:scale-105 border border-amber-400/30"
               >
                 <span>Apply Now</span>
@@ -415,37 +447,345 @@ export default function WorkWhileYouStudyPage() {
         </div>
       </div>
 
-      {/* ================= 2. SUB-NAVIGATION BAR (CORRECTLY RENAMED 4 BLOCKS) ================= */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 py-3 mb-6 shadow-sm transition-all duration-300">
-        <div className="container-max mx-auto px-4 flex justify-center items-center gap-2 sm:gap-4 flex-wrap">
-          {[
-            { id: 'work-in-india' as BlockTabType, label: 'Work & Study in India', icon: Building2 },
-            { id: 'work-in-abroad' as BlockTabType, label: 'Work & Study in Abroad', icon: Globe2 },
-            { id: 'german-projects' as BlockTabType, label: 'German Onboarding Projects', icon: Briefcase },
-            { id: 'reward-study-platform' as BlockTabType, label: 'Reward & Study / Earning Platforms', icon: Trophy }
-          ].map(tab => {
-            const isSelected = activeTab === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabSwitch(tab.id)}
-                className={`text-xs sm:text-sm font-black px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                  isSelected 
-                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 scale-102 ring-2 ring-amber-400/40' 
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-950 border border-slate-200'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      {/* ================= 2. MASTER PATHWAY HUB (LIGHT NAV + DARK EXPLANATION PANEL) ================= */}
+      <div id="modular-showcase-container" className="container-max px-4 sm:px-6 mb-8">
+        <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-2xl overflow-hidden">
+          
+          {/* Top Category Section - LIGHT SECTION */}
+          <div className="bg-slate-100/90 p-4 sm:p-6 border-b border-slate-200">
+            <div className="flex items-center justify-between px-1 mb-3.5">
+              <span className="text-xs font-black uppercase tracking-widest text-brand-700 flex items-center gap-2">
+                <Compass className="w-4 h-4 text-brand-600" /> Interactive Pathway Navigator
+              </span>
+              <span className="text-xs font-bold text-slate-500 hidden sm:inline-block">
+                Select a pathway below to view details, earnings &amp; active opportunities
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
+              {[
+                { 
+                  id: 'work-in-india' as BlockTabType, 
+                  number: '01',
+                  label: 'Work & Study in India', 
+                  sublabel: 'Domestic Corporate Pilots',
+                  stipend: 'Stipend: ₹15k – ₹35k/mo',
+                  icon: Building2 
+                },
+                { 
+                  id: 'work-in-abroad' as BlockTabType, 
+                  number: '02',
+                  label: 'Work & Study in Abroad', 
+                  sublabel: 'European Student Roles',
+                  stipend: 'Euro €900 – €1,400/mo',
+                  icon: Globe2 
+                },
+                { 
+                  id: 'german-projects' as BlockTabType, 
+                  number: '03',
+                  label: 'German Onboarding Projects', 
+                  sublabel: 'Active International Pilots',
+                  stipend: '100% Sponsor Match',
+                  icon: Briefcase 
+                },
+                { 
+                  id: 'reward-study-platform' as BlockTabType, 
+                  label: 'Reward & Study Platform', 
+                  sublabel: 'Earning & Tuition Grants',
+                  stipend: 'Up to 50% Course Subsidy',
+                  icon: Trophy 
+                }
+              ].map(tab => {
+                const isSelected = activeTab === tab.id;
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabSwitch(tab.id)}
+                    className={`relative p-4 rounded-2xl text-left transition-all cursor-pointer flex items-start gap-3.5 border-2 group ${
+                      isSelected 
+                        ? 'bg-white text-slate-900 border-brand-600 shadow-xl shadow-brand-600/15 ring-4 ring-brand-500/20 scale-[1.02]' 
+                        : 'bg-white/80 hover:bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:shadow-md'
+                    }`}
+                  >
+                    {/* Active dock notch indicator pointing down to the dark explanation panel */}
+                    {isSelected && (
+                      <div className="absolute -bottom-3 sm:-bottom-4 left-1/2 -translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-brand-600 z-30" />
+                    )}
+
+                    {/* Left Icon - Positioned at the Left End */}
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+                      isSelected 
+                        ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' 
+                        : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200 group-hover:text-slate-900'
+                    }`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+
+                    {/* Word / Text Content - Made Bigger & Bolder */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${
+                          isSelected ? 'text-brand-700' : 'text-slate-400'
+                        }`}>
+                          Pathway {tab.number}
+                        </span>
+                        {isSelected && (
+                          <span className="flex items-center gap-1 text-[9px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                            Active
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Large prominent pathway name */}
+                      <div className={`text-base sm:text-lg font-black leading-tight tracking-tight mb-1 ${
+                        isSelected ? 'text-slate-950' : 'text-slate-800'
+                      }`}>
+                        {tab.label}
+                      </div>
+
+                      <div className="text-xs font-semibold text-slate-500 leading-snug">
+                        {tab.sublabel}
+                      </div>
+
+                      {/* Simple bottom stipend mention */}
+                      <div className={`text-[11px] font-bold mt-2 pt-1.5 border-t border-slate-100 ${
+                        isSelected ? 'text-brand-700 font-extrabold' : 'text-slate-400'
+                      }`}>
+                        {tab.stipend}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Attached Explanation Panel - DARK SECTION */}
+          <div className="p-6 sm:p-8 lg:p-10 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white relative overflow-hidden transition-all duration-300 border-t-2 border-brand-500/30">
+            {/* Ambient electric glowing backdrops */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {activeTab === 'work-in-india' && (
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fade-in">
+                <div className="space-y-3.5 max-w-3xl">
+                  <div className="inline-flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black tracking-widest text-brand-300 uppercase bg-brand-500/20 px-3.5 py-1 rounded-full border border-brand-400/40 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-brand-400" />
+                      Pathway 1 of 4 • Domestic Corporate Pilots
+                    </span>
+                    <span className="text-xs font-bold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-400/40 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> 1-Year Certificate Guaranteed
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
+                    Work &amp; Study in India
+                  </h2>
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-medium">
+                    Gain live corporate experience while preparing for German language certification or international universities. Earn monthly stipends with 100% verified 1-year corporate certificates approved for German embassy &amp; opportunity card files.
+                  </p>
+                  
+                  {/* Highlights pills */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 font-bold" /> 6 Months Structured Training
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 font-bold" /> ₹15,000 – ₹25,000 Training Stipend
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 font-bold" /> Real-time Permanent Onboarding
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row lg:flex-col items-center lg:items-end gap-4 shrink-0">
+                  <div className="bg-slate-900/95 text-white p-5 sm:p-6 rounded-2xl border border-slate-700/80 text-center min-w-[230px] w-full sm:w-auto shadow-2xl">
+                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Candidate Stipend</span>
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-0.5 mb-1">₹15,000 – ₹35,000</div>
+                    <span className="text-xs text-slate-300 font-medium">Monthly + Experience Letter</span>
+                  </div>
+                  <button
+                    onClick={() => handleOpenCourseModal(undefined, 'Student Sub-Track', 'IT & Automation')}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs sm:text-sm cursor-pointer shadow-xl shadow-amber-400/25 transition-all flex items-center justify-center gap-2 hover:scale-105"
+                  >
+                    <span>Apply for India Pathway</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'work-in-abroad' && (
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fade-in">
+                <div className="space-y-3.5 max-w-3xl">
+                  <div className="inline-flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black tracking-widest text-emerald-300 uppercase bg-emerald-500/20 px-3.5 py-1 rounded-full border border-emerald-400/40 flex items-center gap-1.5">
+                      <Globe2 className="w-3.5 h-3.5 text-emerald-400" />
+                      Pathway 2 of 4 • European Student Roles &amp; Earnings
+                    </span>
+                    <span className="text-xs font-bold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-400/40 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> 20h/Week Legal Compliance
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
+                    Work &amp; Study in Abroad
+                  </h2>
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-medium">
+                    Earn in Euro while completing your university degrees across Germany and Europe. Pick up on-ground support tasks, assist arriving scholars, or take on remote IT &amp; Marketing roles up to 20 hours/week.
+                  </p>
+                  
+                  {/* Highlights pills */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 font-bold" /> Direct German Bank Payout (N26/Sparkasse)
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 font-bold" /> Zero University Class Interruption
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 font-bold" /> Verified Student Housing Support
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row lg:flex-col items-center lg:items-end gap-4 shrink-0">
+                  <div className="bg-slate-900/95 text-white p-5 sm:p-6 rounded-2xl border border-slate-700/80 text-center min-w-[230px] w-full sm:w-auto shadow-2xl">
+                    <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Euro Earning Rate</span>
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-0.5 mb-1">€50 – €250+</div>
+                    <span className="text-xs text-slate-300 font-medium">Per Task / Up to €1,400/mo</span>
+                  </div>
+                  <button
+                    onClick={() => handleOpenCourseModal(activeAbroad.title, 'Abroad Placement Track', 'European Student Roles')}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs sm:text-sm cursor-pointer shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 hover:scale-105"
+                  >
+                    <span>Apply for Abroad Roles</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'german-projects' && (
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fade-in">
+                <div className="space-y-3.5 max-w-3xl">
+                  <div className="inline-flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black tracking-widest text-indigo-300 uppercase bg-indigo-500/20 px-3.5 py-1 rounded-full border border-indigo-400/40 flex items-center gap-1.5">
+                      <Briefcase className="w-3.5 h-3.5 text-indigo-400" />
+                      Pathway 3 of 4 • Active International Pilots
+                    </span>
+                    <span className="text-xs font-bold text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-400/40 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" /> Direct Employer Sponsorship
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
+                    German Onboarding Projects
+                  </h2>
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-medium">
+                    Execute live technical, commercial, and clinical projects locally with our supply chains to qualify for direct German business sponsorships, Opportunity Cards, and EU Blue Card relocation.
+                  </p>
+                  
+                  {/* Highlights pills */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-400 font-bold" /> 100% Sponsor Match Pathway
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-400 font-bold" /> Live Production Project Deliverables
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-400 font-bold" /> B1/B2 Fast-Track Linguistic Coaching
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row lg:flex-col items-center lg:items-end gap-4 shrink-0">
+                  <div className="bg-slate-900/95 text-white p-5 sm:p-6 rounded-2xl border border-slate-700/80 text-center min-w-[230px] w-full sm:w-auto shadow-2xl">
+                    <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">Career Pathway</span>
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-0.5 mb-1">100% Sponsor Match</div>
+                    <span className="text-xs text-slate-300 font-medium">Opportunity Card &amp; Blue Card</span>
+                  </div>
+                  <button
+                    onClick={() => handleOpenCourseModal(undefined, 'Job-Seeker Sub-Track', 'German Onboarding')}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-indigo-500 hover:bg-indigo-400 text-white font-black rounded-xl text-xs sm:text-sm cursor-pointer shadow-xl shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 hover:scale-105"
+                  >
+                    <span>Apply for Project Pilot</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'reward-study-platform' && (
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-fade-in">
+                <div className="space-y-3.5 max-w-3xl">
+                  <div className="inline-flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black tracking-widest text-amber-300 uppercase bg-amber-500/20 px-3.5 py-1 rounded-full border border-amber-400/40 flex items-center gap-1.5">
+                      <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                      Pathway 4 of 4 • Incentives, Certifications &amp; Rewards
+                    </span>
+                    <span className="text-xs font-bold text-amber-300 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-400/40 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" /> Tuition Fee Offset System
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight">
+                    Reward &amp; Study / Earning Platforms
+                  </h2>
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-medium">
+                    Turn your study time into tangible wealth. Earn points, gadget packages, fully paid European tour packages, and verified Freelance Consultant or Marketing Head certifications.
+                  </p>
+                  
+                  {/* Highlights pills */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 font-bold" /> Up to 50% Course Fee Concession
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 font-bold" /> European Travel Incentive Package
+                    </span>
+                    <span className="text-xs font-semibold text-slate-200 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 font-bold" /> Verified Consultant Certifications
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row lg:flex-col items-center lg:items-end gap-4 shrink-0">
+                  <div className="bg-slate-900/95 text-white p-5 sm:p-6 rounded-2xl border border-slate-700/80 text-center min-w-[230px] w-full sm:w-auto shadow-2xl">
+                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Fee Subsidy</span>
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-0.5 mb-1">Up to 50% Off</div>
+                    <span className="text-xs text-slate-300 font-medium">German &amp; IELTS Courses</span>
+                  </div>
+                  <button
+                    onClick={() => handleOpenCourseModal(promoCourseSelection, 'Student Sub-Track', 'Reward & Study')}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs sm:text-sm cursor-pointer shadow-xl shadow-amber-400/25 transition-all flex items-center justify-center gap-2 hover:scale-105"
+                  >
+                    <span>Enroll in Custom Plan</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section Divider / Step 2 Ribbon connecting into the Services Catalog */}
+          <div className="bg-slate-900 px-6 py-3.5 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-300">
+            <div className="flex items-center gap-2 text-white font-bold">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+              <span>Step 2: Explore Available Streams &amp; Active Programs for {activeTabLabel} Below</span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Select any stream below and click Apply Now to choose your course
+            </span>
+          </div>
+
         </div>
       </div>
 
-      {/* ================= 3. DYNAMIC IN-PLACE SHOWCASE CONTAINER ================= */}
-      <div id="modular-showcase-container" className="container-max px-4 sm:px-6 space-y-10 pb-20">
+
+      {/* ================= 3. ACTIVE PATHWAY COURSES & SERVICES CATALOG ================= */}
+      <div className="container-max px-4 sm:px-6 space-y-10 pb-20">
         
         {/* Dynamic Section Render Area */}
         <div className="transition-all duration-300">
@@ -453,27 +793,6 @@ export default function WorkWhileYouStudyPage() {
           {/* ================= BLOCK 1: WORK & STUDY IN INDIA ================= */}
           {activeTab === 'work-in-india' && (
             <div className="space-y-8 animate-in fade-in duration-300">
-              
-              {/* Header Banner */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <span className="text-xs font-black tracking-widest text-brand-700 uppercase bg-brand-50 px-3.5 py-1 rounded-full border border-brand-200">
-                    Modular Block 1 • Domestic Corporate Pilots
-                  </span>
-                  <h2 className="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
-                    Work &amp; Study in India
-                  </h2>
-                  <p className="text-slate-600 text-xs sm:text-sm max-w-2xl leading-relaxed font-medium">
-                    Gain live corporate experience while preparing for German language certification or international universities. Earn monthly stipends with 100% verified 1-year corporate certificates.
-                  </p>
-                </div>
-
-                <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 text-center shrink-0 min-w-[200px]">
-                  <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Candidate Stipend</span>
-                  <div className="text-2xl font-black text-white mt-0.5 mb-1">₹15,000 – ₹35,000</div>
-                  <span className="text-[11px] text-slate-300 font-medium">Monthly + Experience Letter</span>
-                </div>
-              </div>
 
               {/* 4 Corporate Domain Cards (Fixed responsive height, streamlined features & stream selection) */}
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -533,9 +852,9 @@ export default function WorkWhileYouStudyPage() {
                           </div>
                         </div>
 
-                        {/* Apply Now Button */}
+                        {/* Apply Now Button - Triggers Smart Course Selection */}
                         <button 
-                          onClick={() => navigateTo(`#applications?tab=Work While You Study (Domain: ${encodeURIComponent(item.category)} - Stream: ${encodeURIComponent(currentStream)})`)} 
+                          onClick={() => handleOpenCourseModal(currentStream, 'Student Sub-Track', item.category)} 
                           className="w-full py-2.5 bg-slate-900 hover:bg-brand-600 text-white font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-101"
                         >
                           <span>Apply Now</span>
@@ -572,7 +891,7 @@ export default function WorkWhileYouStudyPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => navigateTo('#applications?tab=Work While You Study')}
+                  onClick={() => handleOpenCourseModal(undefined, 'Student Sub-Track', 'IT & Automation')}
                   className="px-8 py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs sm:text-sm whitespace-nowrap cursor-pointer shadow-lg hover:scale-102 transition-all shrink-0"
                 >
                   Apply for Work & Study in India →
@@ -586,27 +905,6 @@ export default function WorkWhileYouStudyPage() {
           {activeTab === 'work-in-abroad' && (
             <div className="space-y-8 animate-in fade-in duration-300">
               
-              {/* Header Banner */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <span className="text-xs font-black tracking-widest text-emerald-700 uppercase bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-200">
-                    Modular Block 2 • European Student Roles & Earnings
-                  </span>
-                  <h2 className="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
-                    Work & Study in Abroad
-                  </h2>
-                  <p className="text-slate-600 text-xs sm:text-sm max-w-2xl leading-relaxed font-medium">
-                    Earn in Euro while completing your university degrees across Germany and Europe. Pick up on-ground support tasks, assist arriving scholars, or take on remote IT & Marketing roles up to 20 hours/week.
-                  </p>
-                </div>
-
-                <div className="bg-emerald-950 text-white p-5 rounded-2xl border border-emerald-800 text-center shrink-0 min-w-[200px]">
-                  <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Euro Earning Rate</span>
-                  <div className="text-2xl font-black text-white mt-0.5 mb-1">€50 – €250+</div>
-                  <span className="text-[11px] text-emerald-200 font-medium">Per Task / Student Assignment</span>
-                </div>
-              </div>
-
               {/* Interactive Service Switcher & Details Container */}
               <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden p-6 sm:p-8">
                 
@@ -687,7 +985,7 @@ export default function WorkWhileYouStudyPage() {
 
                     <div className="space-y-3">
                       <button
-                        onClick={() => navigateTo(`#applications?tab=Work & Study in Abroad (${encodeURIComponent(activeAbroad.title)})`)}
+                        onClick={() => handleOpenCourseModal(activeAbroad.title, 'Abroad Placement Track', 'European Student Roles')}
                         className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-xl cursor-pointer shadow-md transition-all flex items-center justify-center gap-2"
                       >
                         <span>{activeAbroad.actionText}</span>
@@ -709,27 +1007,6 @@ export default function WorkWhileYouStudyPage() {
           {activeTab === 'german-projects' && (
             <div className="space-y-8 animate-in fade-in duration-300">
               
-              {/* Header Banner */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <span className="text-xs font-black tracking-widest text-indigo-700 uppercase bg-indigo-50 px-3.5 py-1 rounded-full border border-indigo-200">
-                    Modular Block 3 • Active International Pilots
-                  </span>
-                  <h2 className="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
-                    German Onboarding Projects
-                  </h2>
-                  <p className="text-slate-600 text-xs sm:text-sm max-w-2xl leading-relaxed font-medium">
-                    Execute live technical, commercial, and clinical projects locally with our supply chains to qualify for direct German business sponsorships and corporate relocation.
-                  </p>
-                </div>
-
-                <div className="bg-indigo-950 text-white p-5 rounded-2xl border border-indigo-800 text-center shrink-0 min-w-[200px]">
-                  <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">Career Pathway</span>
-                  <div className="text-xl font-black text-white mt-0.5 mb-1">100% Sponsor Match</div>
-                  <span className="text-[11px] text-indigo-200 font-medium">Opportunity Card & Blue Card</span>
-                </div>
-              </div>
-
               {/* 4 Active Projects Grid */}
               <div className="grid md:grid-cols-2 gap-6">
                 {germanProjects.map((project, idx) => {
@@ -774,7 +1051,7 @@ export default function WorkWhileYouStudyPage() {
                       </div>
 
                       <button 
-                        onClick={() => navigateTo(`#applications?tab=German Onboarding Projects (${encodeURIComponent(project.title)})`)} 
+                        onClick={() => handleOpenCourseModal(project.title, 'Job-Seeker Sub-Track', project.category)} 
                         className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-sm"
                       >
                         <span>Apply for Project Pilot</span>
@@ -814,27 +1091,6 @@ export default function WorkWhileYouStudyPage() {
           {activeTab === 'reward-study-platform' && (
             <div className="space-y-8 animate-in fade-in duration-300">
               
-              {/* Header Banner */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <span className="text-xs font-black tracking-widest text-amber-800 uppercase bg-amber-50 px-3.5 py-1 rounded-full border border-amber-200">
-                    Modular Block 4 • Incentives, Certifications & Rewards
-                  </span>
-                  <h2 className="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
-                    Reward & Study / Earning Platforms
-                  </h2>
-                  <p className="text-slate-600 text-xs sm:text-sm max-w-2xl leading-relaxed font-medium">
-                    Turn your study time into tangible wealth. Earn points, gadget packages, fully paid European tour packages, and verified Freelance Consultant or Marketing Head certifications.
-                  </p>
-                </div>
-
-                <div className="bg-amber-950 text-white p-5 rounded-2xl border border-amber-800 text-center shrink-0 min-w-[200px]">
-                  <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Fee Subsidy</span>
-                  <div className="text-2xl font-black text-white mt-0.5 mb-1">Up to 50% Off</div>
-                  <span className="text-[11px] text-amber-200 font-medium">German & IELTS Courses</span>
-                </div>
-              </div>
-
               {/* Reward Platform 6 Cards */}
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {rewardPlatformItems.map((item, idx) => {
@@ -943,7 +1199,7 @@ export default function WorkWhileYouStudyPage() {
                     </div>
 
                     <button
-                      onClick={() => navigateTo(`#applications?tab=Reward & Study (${encodeURIComponent(promoCourseSelection)} - ${encodeURIComponent(promoPlanDuration)})`)}
+                      onClick={() => handleOpenCourseModal(promoCourseSelection, 'Student Sub-Track', 'IT & Automation')}
                       className="w-full py-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs cursor-pointer shadow-lg transition-all flex items-center justify-center gap-1.5"
                     >
                       <span>Enroll in Custom Plan</span>
@@ -1051,6 +1307,16 @@ export default function WorkWhileYouStudyPage() {
           </div>
         </div>
       )}
+
+      {/* Pre-Application Course Selection Modal */}
+      <WorkStudyCourseModal
+        isOpen={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+        onConfirm={handleCourseSelectionConfirmed}
+        initialCourse={modalInitialCourse}
+        initialTrack={modalInitialTrack}
+        initialDomain={modalInitialDomain}
+      />
 
     </div>
   );

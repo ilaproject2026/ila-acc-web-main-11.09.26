@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { 
   Shield, Users, BarChart2, 
-  Building, UserPlus, Maximize2, Minimize2, Activity, Settings, LogOut, Globe, Lock, Unlock, Award, Briefcase, GraduationCap, Plane, FileText, Key, ShieldCheck, DollarSign, Megaphone, Ticket, Building2, Trophy, Bot, Gift
+  Building, UserPlus, Maximize2, Minimize2, Activity, Settings, LogOut, Globe, Lock, Unlock, Award, Briefcase, GraduationCap, Plane, FileText, Key, ShieldCheck, DollarSign, Megaphone, Ticket, Building2, Trophy, Bot, Gift,
+  Type
 } from 'lucide-react';
 import { getInquiries, getVisitorLogs, getVisitorStats, Inquiry } from '../lib/db';
+import { useThemeTypography } from '../context/ThemeTypographyContext';
 import FinanceCommissionHub from '../components/admin/FinanceCommissionHub';
 import HRConsultantHub from '../components/admin/HRConsultantHub';
 import MarketingStudioHub from '../components/admin/MarketingStudioHub';
@@ -22,6 +24,7 @@ import CentralInquiriesHub from '../components/admin/frontoffice/CentralInquirie
 import WalkinIntakeDesk from '../components/admin/frontoffice/WalkinIntakeDesk';
 import OnlineEnquiryFunnel from '../components/admin/frontoffice/OnlineEnquiryFunnel';
 import DepartmentInquiryView from '../components/admin/frontoffice/DepartmentInquiryView';
+import FontSettingsModal from '../components/admin/frontoffice/FontSettingsModal';
 import WorkStudyHub from '../components/admin/WorkStudyHub';
 import StudyAbroadHub from '../components/admin/StudyAbroadHub';
 import JobCareerHub from '../components/admin/JobCareerHub';
@@ -33,9 +36,11 @@ interface VisitorStatType {
 }
 
 export default function AdminPortal() {
+  const { settings, setColorTheme, activeProfile } = useThemeTypography();
+  const isDark = settings.colorTheme === 'dark';
+
   const [role, setRole] = useState<string>('Super Admin');
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [showFranchiseModal, setShowFranchiseModal] = useState(false);
   const [franchiseName, setFranchiseName] = useState('');
   const [franchiseEmail, setFranchiseEmail] = useState('');
@@ -46,6 +51,9 @@ export default function AdminPortal() {
   const [isAuthorizedToEdit, setIsAuthorizedToEdit] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authCode, setAuthCode] = useState('');
+
+  // Front Office Font & Custom Theme Profiles Modal State
+  const [showFontSettingsModal, setShowFontSettingsModal] = useState(false);
 
   // Allowed Tabs Config
   const allowedTabs: Record<string, string[]> = {
@@ -157,10 +165,10 @@ export default function AdminPortal() {
     : inquiries.filter(item => item.category === activeCategoryFilter);
 
   return (
-    <div className={`min-h-screen font-sans pb-20 transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`min-h-screen font-sans pb-20 transition-colors duration-300 ${isDark ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* 1. TOP STATUS BAR (Security & Branding) */}
-      <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border-b px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-300`}>
+      <div className={`${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border-b px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-300`}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm">ILA</div>
           <div>
@@ -184,11 +192,11 @@ export default function AdminPortal() {
             </button>
           )}
 
-          <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded-xl border cursor-pointer ${darkMode ? 'hover:bg-slate-800 border-slate-700 text-yellow-400' : 'hover:bg-slate-100 border-slate-200 text-slate-600'}`} title="Toggle Dark Mode">
-            {darkMode ? '☀️' : '🌙'}
+          <button onClick={() => setColorTheme(isDark ? 'standard-light' : 'dark')} className={`p-2 rounded-xl border cursor-pointer ${isDark ? 'hover:bg-slate-800 border-slate-700 text-yellow-400' : 'hover:bg-slate-100 border-slate-200 text-slate-600'}`} title="Toggle Dark Mode">
+            {isDark ? '☀️' : '🌙'}
           </button>
 
-          <button onClick={toggleFullScreenWorkspace} className={`p-2 rounded-xl border cursor-pointer ${darkMode ? 'hover:bg-slate-800 border-slate-700' : 'hover:bg-slate-100 border-slate-200'}`} title="Full View">
+          <button onClick={toggleFullScreenWorkspace} className={`p-2 rounded-xl border cursor-pointer ${isDark ? 'hover:bg-slate-800 border-slate-700' : 'hover:bg-slate-100 border-slate-200'}`} title="Full View">
             {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
@@ -228,6 +236,30 @@ export default function AdminPortal() {
               </button>
               <button onClick={() => setActiveTab('online_enquiry')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'online_enquiry' ? 'bg-indigo-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'}`}>
                 🌐 Online Enquiry Funnel
+              </button>
+            </div>
+
+            {/* Dedicated Font Settings Customization Control */}
+            <div className="pt-2 border-t border-slate-200/80">
+              <button
+                type="button"
+                id="front-office-font-settings-btn"
+                onClick={() => setShowFontSettingsModal(true)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-extrabold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100/90 border border-indigo-200/90 transition-all cursor-pointer shadow-xs group"
+                title="Configure Front Office & Global Portal Font Family, Weight & Scale"
+              >
+                <div className="flex items-center gap-2">
+                  <Type className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                  <span>Font Settings</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded border border-indigo-200">
+                    {activeProfile.name}
+                  </span>
+                  <span className="text-[10px] font-mono font-bold bg-white text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs">
+                    {settings.fontFamily}
+                  </span>
+                </div>
               </button>
             </div>
           </div>
@@ -505,6 +537,12 @@ export default function AdminPortal() {
           </div>
         </div>
       )}
+
+      {/* FRONT OFFICE GLOBAL FONT SETTINGS MODAL */}
+      <FontSettingsModal 
+        isOpen={showFontSettingsModal} 
+        onClose={() => setShowFontSettingsModal(false)} 
+      />
 
     </div>
   );

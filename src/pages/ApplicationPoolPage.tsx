@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ChevronRight, ChevronLeft, GraduationCap, Globe, Briefcase, Plane, 
-  MessageCircle, Sparkles, CheckCircle2, ArrowRight, ShieldCheck, Mail, Star
+  MessageCircle, Sparkles, CheckCircle2, ArrowRight, ShieldCheck, Mail, Star,
+  UploadCloud, FileText, X, AlertCircle, Edit3, Check
 } from 'lucide-react';
 import { saveInquiry } from '../lib/db';
+import WorkStudyCourseModal, { WorkStudySelectionData } from '../components/common/WorkStudyCourseModal';
 
 const SERVICES = [
   { id: 'education', label: 'Education & Training' },
@@ -127,9 +129,14 @@ export default function ApplicationPoolPage() {
     visaTypeRequired: 'Student Visa',
     
     // Dynamic fields for Work While You Study
+    workStudyCourse: 'Software Engineering & Cloud Architecture',
+    workStudyCategory: 'Job-Related / Technical Courses',
     lweTrack: 'Student Sub-Track',
     stipendDomain: 'IT & Automation',
     internshipDuration: '6 Months',
+    resumeFileName: '',
+    resumeFileSize: '',
+    resumeDataUrl: '',
 
     // Dynamic fields for Jobs
     jobDomain: 'Software Engineering',
@@ -148,8 +155,12 @@ export default function ApplicationPoolPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activePromoIndex, setActivePromoIndex] = useState(0);
   const [submissionResult, setSubmissionResult] = useState<{status: string, message: string, aiScore?: number, aiPath?: string, confirmationTitle?: string} | null>(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [isDraggingResume, setIsDraggingResume] = useState(false);
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   
   const resultRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-rotate promo banners
   useEffect(() => {
@@ -161,42 +172,117 @@ export default function ApplicationPoolPage() {
 
   // URL Hash Parsing
   useEffect(() => {
-    const hash = window.location.hash;
-    let initialService = 'education';
-    if (hash.includes('?tab=')) {
-      const tabParam = decodeURIComponent(hash.split('?tab=')[1]);
-      if (tabParam.includes('Education')) initialService = 'education';
-      else if (tabParam.includes('Study Abroad')) initialService = 'study-abroad';
-      else if (tabParam.includes('Visa')) initialService = 'visa';
-      else if (tabParam.includes('Work While You Study') || tabParam.includes('Learn') || tabParam.includes('Work While You Study')) initialService = 'work-while-you-study';
-      else if (tabParam.includes('Jobs') || tabParam.includes('Job Search')) initialService = 'jobs';
-      else if (tabParam.includes('Rewards')) initialService = 'rewards';
-    }
-    
-    // Parse query params for course pre-filling
-    if (hash.includes('?')) {
-      const params = new URLSearchParams(hash.split('?')[1]);
-      setFormData(prev => ({ 
-        ...prev, 
-        service: initialService,
-        ...(params.has('course') && { educationCourse: params.get('course') || '' }),
-        ...(params.has('info') && { educationMethod: params.get('info') || '' }),
-        ...(params.has('batch') && { educationBatch: params.get('batch') || '' }),
-        ...(params.has('slot') && { educationSlot: params.get('slot') || '' })
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, service: initialService }));
-    }
-    
-    const matchedPromoIndex = PROMO_BANNERS.findIndex(p => p.id.includes(initialService.split('-')[0]) || p.id.includes(initialService.replace('-', '')));
-    if (matchedPromoIndex !== -1) {
-      setActivePromoIndex(matchedPromoIndex);
-    }
+    const parseHash = () => {
+      const hash = window.location.hash;
+      let initialService = 'education';
+      if (hash.includes('?tab=')) {
+        const tabParam = decodeURIComponent(hash.split('?tab=')[1]);
+        if (tabParam.includes('Education')) initialService = 'education';
+        else if (tabParam.includes('Study Abroad')) initialService = 'study-abroad';
+        else if (tabParam.includes('Visa')) initialService = 'visa';
+        else if (
+          tabParam.includes('Work While You Study') || 
+          tabParam.includes('Learn') || 
+          tabParam.includes('Work & Study') || 
+          tabParam.includes('German Onboarding') || 
+          tabParam.includes('Reward & Study')
+        ) initialService = 'work-while-you-study';
+        else if (tabParam.includes('Jobs') || tabParam.includes('Job Search')) initialService = 'jobs';
+        else if (tabParam.includes('Rewards')) initialService = 'rewards';
+      }
+      
+      // Parse query params for course pre-filling
+      if (hash.includes('?')) {
+        const queryString = hash.includes('?') ? hash.substring(hash.indexOf('?') + 1) : '';
+        const params = new URLSearchParams(queryString);
+        if (params.get('service')) {
+          initialService = params.get('service') || initialService;
+        }
+        setFormData(prev => ({ 
+          ...prev, 
+          service: initialService,
+          ...(params.has('course') && { 
+            educationCourse: params.get('course') || '',
+            workStudyCourse: params.get('course') || ''
+          }),
+          ...(params.has('category') && { workStudyCategory: params.get('category') || '' }),
+          ...(params.has('track') && { lweTrack: params.get('track') || prev.lweTrack }),
+          ...(params.has('domain') && { stipendDomain: params.get('domain') || prev.stipendDomain }),
+          ...(params.has('info') && { educationMethod: params.get('info') || '' }),
+          ...(params.has('batch') && { educationBatch: params.get('batch') || '' }),
+          ...(params.has('slot') && { educationSlot: params.get('slot') || '' })
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, service: initialService }));
+      }
+      
+      const matchedPromoIndex = PROMO_BANNERS.findIndex(p => p.id.includes(initialService.split('-')[0]) || p.id.includes(initialService.replace('-', '')));
+      if (matchedPromoIndex !== -1) {
+        setActivePromoIndex(matchedPromoIndex);
+      }
+    };
+
+    parseHash();
+    window.addEventListener('hashchange', parseHash);
+    return () => window.removeEventListener('hashchange', parseHash);
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleResumeFileChange = (file: File | null) => {
+    if (!file) {
+      setFormData(prev => ({
+        ...prev,
+        resumeFileName: '',
+        resumeFileSize: '',
+        resumeDataUrl: ''
+      }));
+      setResumeError(null);
+      return;
+    }
+
+    // Validate type and size (under 10MB)
+    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      setResumeError('Please upload a valid PDF or Word document (.pdf, .doc, .docx).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setResumeError('File size exceeds 10 MB limit. Please select a smaller file.');
+      return;
+    }
+
+    setResumeError(null);
+    const formattedSize = file.size > 1024 * 1024 
+      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
+      : `${Math.round(file.size / 1024)} KB`;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData(prev => ({
+        ...prev,
+        resumeFileName: file.name,
+        resumeFileSize: formattedSize,
+        resumeDataUrl: reader.result as string
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCourseModalConfirm = (data: WorkStudySelectionData) => {
+    setFormData(prev => ({
+      ...prev,
+      workStudyCourse: data.course,
+      workStudyCategory: data.category,
+      lweTrack: data.track,
+      stipendDomain: data.domain
+    }));
+    setIsCourseModalOpen(false);
   };
 
   const handleNextPromo = () => setActivePromoIndex((prev) => (prev + 1) % PROMO_BANNERS.length);
@@ -206,6 +292,13 @@ export default function ApplicationPoolPage() {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.phone) return;
 
+    // Validate Resume for Work & Study Pathway
+    if (formData.service === 'work-while-you-study' && !formData.resumeFileName) {
+      setResumeError('Please upload your Resume / CV. It is a mandatory requirement for Work & Study pathways.');
+      return;
+    }
+
+    setResumeError(null);
     setIsSubmitting(true);
     setSubmissionResult(null);
 
@@ -241,9 +334,10 @@ export default function ApplicationPoolPage() {
         } else if (formData.service === 'work-while-you-study') {
           department = 'Job & Career / Work While You Study';
           category = 'Jobs';
-          customPath = `${formData.lweTrack} - ${formData.stipendDomain} (${formData.internshipDuration})`;
-          confirmationTitle = 'Pilot Track Assigned';
-          confirmationMsg = 'Profile matched. Your corporate tracking and stipend pilot details have been logged in our Lead CRM.';
+          const courseDetail = formData.workStudyCourse ? `${formData.workStudyCourse}` : 'Work & Study Track';
+          customPath = `${courseDetail} • ${formData.lweTrack} • ${formData.stipendDomain} (${formData.internshipDuration})`;
+          confirmationTitle = 'Work & Study Track Assigned';
+          confirmationMsg = `Profile and Resume (${formData.resumeFileName || 'CV Attached'}) verified! Your corporate tracking, mentor review, and stipend pilot details have been logged in our Lead CRM.`;
         } else if (formData.service === 'jobs') {
           department = 'Job & Career / Work While You Study';
           category = 'Jobs';
@@ -263,7 +357,7 @@ export default function ApplicationPoolPage() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          course: selectedServiceLabel,
+          course: formData.service === 'work-while-you-study' ? (formData.workStudyCourse || selectedServiceLabel) : selectedServiceLabel,
           path: customPath,
           batch: formData.service === 'education' ? formData.educationBatch : undefined,
           slot: formData.service === 'education' ? formData.educationSlot : undefined,
@@ -271,10 +365,13 @@ export default function ApplicationPoolPage() {
           paymentStatus: 'Pending',
           category: category,
           source: 'Application Pool Unified Intake',
-          docStatus: 'Pending',
+          docStatus: formData.resumeFileName ? 'Approved' : 'Pending',
           department: department,
           crmStatus: 'New Lead',
-          pipelineStage: 'Intake'
+          pipelineStage: 'Intake',
+          resumeUrl: formData.resumeDataUrl || formData.resumeUrl || undefined,
+          resumeFileName: formData.resumeFileName || undefined,
+          resumeFileSize: formData.resumeFileSize || undefined
         });
 
         const mockScore = Math.floor(75 + Math.random() * 24);
@@ -488,30 +585,191 @@ export default function ApplicationPoolPage() {
 
                   {formData.service === 'work-while-you-study' && (
                     <div className="space-y-4 animate-fade-in">
+                      {/* Smart Pre-filled Course & Category Summary Card */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-brand-50/40 border border-slate-200 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-brand-700 bg-brand-100/60 px-2.5 py-0.5 rounded-full border border-brand-200">
+                            Target Service &amp; Course Alignment
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsCourseModalOpen(true)}
+                            className="text-xs font-bold text-brand-700 hover:text-brand-900 flex items-center gap-1 cursor-pointer transition-colors bg-white px-2.5 py-1 rounded-lg border border-slate-200 hover:border-brand-300 shadow-xs"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-brand-600" />
+                            <span>Change Course / Track</span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-xs text-slate-500 font-semibold">Selected Course for Study &amp; Experience:</div>
+                          <div className="text-sm font-black text-slate-900 flex items-center gap-2">
+                            <span>{formData.workStudyCourse || 'Software Engineering & Cloud Architecture'}</span>
+                          </div>
+                          {formData.workStudyCategory && (
+                            <div className="inline-block text-[11px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                              Category: {formData.workStudyCategory}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Track Choice</label>
-                          <select name="lweTrack" value={formData.lweTrack} onChange={handleInputChange} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 outline-none focus:border-brand-500 text-sm font-bold bg-white text-slate-800">
-                            <option value="Student Sub-Track">Student Sub-Track</option>
+                          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                            Student Sub-Track
+                          </label>
+                          <select 
+                            name="lweTrack" 
+                            value={formData.lweTrack} 
+                            onChange={handleInputChange} 
+                            className="w-full px-4 py-3.5 rounded-xl border border-slate-200 outline-none focus:border-brand-500 text-sm font-bold bg-white text-slate-800 cursor-pointer"
+                          >
+                            <option value="Student Sub-Track">Student Sub-Track (20 hrs/wk)</option>
                             <option value="Job-Seeker Sub-Track">Job-Seeker Sub-Track</option>
+                            <option value="Abroad Placement Track">Abroad Placement Track (EU)</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Stipend Domain</label>
-                          <select name="stipendDomain" value={formData.stipendDomain} onChange={handleInputChange} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 outline-none focus:border-brand-500 text-sm font-bold bg-white text-slate-800">
+                          <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                            Stipend Domain
+                          </label>
+                          <select 
+                            name="stipendDomain" 
+                            value={formData.stipendDomain} 
+                            onChange={handleInputChange} 
+                            className="w-full px-4 py-3.5 rounded-xl border border-slate-200 outline-none focus:border-brand-500 text-sm font-bold bg-white text-slate-800 cursor-pointer"
+                          >
                             <option value="IT & Automation">IT & Automation</option>
-                            <option value="Solar & Tech Pilot">Solar & Tech Pilot</option>
-                            <option value="Logistics & Trade">Logistics & Trade</option>
                             <option value="Accounts & Admin">Accounts & Admin</option>
+                            <option value="Logistics & Trade">Logistics & Trade</option>
+                            <option value="Solar & Tech Pilot">Solar & Tech Pilot</option>
                           </select>
                         </div>
                       </div>
+
                       <div>
-                        <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">Internship Duration</label>
-                        <select name="internshipDuration" value={formData.internshipDuration} onChange={handleInputChange} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 outline-none focus:border-brand-500 text-sm font-bold bg-white text-slate-800">
-                          <option value="6 Months">6 Months</option>
-                          <option value="1 Year">1 Year</option>
+                        <label className="block text-xs font-black uppercase tracking-wider text-slate-500 mb-1.5">
+                          Internship Duration
+                        </label>
+                        <select 
+                          name="internshipDuration" 
+                          value={formData.internshipDuration} 
+                          onChange={handleInputChange} 
+                          className="w-full px-4 py-3.5 rounded-xl border border-slate-200 outline-none focus:border-brand-500 text-sm font-bold bg-white text-slate-800 cursor-pointer"
+                        >
+                          <option value="6 Months">6 Months (Structured Session + Stipend)</option>
+                          <option value="1 Year">1 Year (Full Certificate + Embassy Endorsement)</option>
                         </select>
+                      </div>
+
+                      {/* MANDATORY RESUME / CV UPLOAD COMPONENT */}
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <FileText className="w-4 h-4 text-brand-600" />
+                            <span>Please Upload Your Resume / CV</span>
+                          </label>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                            * Mandatory
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium leading-normal">
+                          Required for work placement verification, mentor review, and employer stipend eligibility audits.
+                        </p>
+
+                        {/* Hidden File Input */}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleResumeFileChange(e.target.files[0]);
+                            }
+                          }}
+                        />
+
+                        {!formData.resumeFileName ? (
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDraggingResume(true);
+                            }}
+                            onDragLeave={() => setIsDraggingResume(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setIsDraggingResume(false);
+                              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                handleResumeFileChange(e.dataTransfer.files[0]);
+                              }
+                            }}
+                            onClick={() => fileInputRef.current?.click()}
+                            className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                              isDraggingResume
+                                ? 'border-brand-500 bg-brand-50/70 scale-101'
+                                : 'border-slate-300 hover:border-brand-500 bg-slate-50/60 hover:bg-white'
+                            }`}
+                          >
+                            <div className="w-12 h-12 mx-auto rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-2 shadow-xs border border-brand-100">
+                              <UploadCloud className="w-6 h-6 text-brand-600" />
+                            </div>
+                            <p className="text-xs font-bold text-slate-800">
+                              <span className="text-brand-600 hover:underline">Click to browse file</span> or drag &amp; drop here
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-1 font-medium">
+                              PDF, DOC, or DOCX formats accepted (Maximum: 10 MB)
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between gap-3 shadow-xs animate-fade-in">
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                <FileText className="w-5 h-5" />
+                              </div>
+                              <div className="overflow-hidden">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-black text-slate-900 truncate">
+                                    {formData.resumeFileName}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded border border-emerald-200 shrink-0">
+                                    Ready
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                  Size: {formData.resumeFileSize} • Attached for Work &amp; Study Review
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="p-1.5 rounded-lg text-slate-600 hover:text-brand-700 hover:bg-white/80 transition-colors text-xs font-bold"
+                                title="Replace file"
+                              >
+                                Replace
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleResumeFileChange(null)}
+                                className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 transition-colors"
+                                title="Remove file"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {resumeError && (
+                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2 animate-shake">
+                            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                            <span>{resumeError}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -773,8 +1031,17 @@ export default function ApplicationPoolPage() {
             </div>
           </div>
         )}
-
       </div>
+
+      {/* Smart Work & Study Course Selection Modal */}
+      <WorkStudyCourseModal
+        isOpen={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+        onConfirm={handleCourseModalConfirm}
+        initialCourse={formData.workStudyCourse}
+        initialTrack={formData.lweTrack}
+        initialDomain={formData.stipendDomain}
+      />
     </div>
   );
 }

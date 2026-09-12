@@ -4,7 +4,7 @@ import {
   Calendar, CheckCircle2, Search, ArrowUpRight, 
   Phone, Mail, MessageSquare, Ticket, Globe, 
   Trash2, SlidersHorizontal, LayoutGrid, List,
-  Clock, ShieldAlert, Sparkles, Filter
+  Clock, ShieldAlert, Sparkles, Filter, Type
 } from 'lucide-react';
 import { 
   getInquiries, 
@@ -19,6 +19,7 @@ import {
 } from '../../../lib/db';
 import ClientIntakeModal from './ClientIntakeModal';
 import DailyFollowupReportsModal from './DailyFollowupReportsModal';
+import FontSettingsModal from './FontSettingsModal';
 
 interface CentralInquiriesHubProps {
   onNavigateDepartment?: (deptTab: string) => void;
@@ -46,6 +47,7 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
   // Modals
   const [showIntakeModal, setShowIntakeModal] = useState(false);
   const [showReportsModal, setShowReportsModal] = useState(false);
+  const [showFontModal, setShowFontModal] = useState(false);
 
   const loadData = () => {
     setInquiries(getInquiries());
@@ -130,6 +132,16 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowFontModal(true)}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-2 cursor-pointer shadow-xs transition-all group"
+            title="Adjust Front Office Font Family, Weight & Scaling"
+          >
+            <Type className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span>Font Settings</span>
+          </button>
+
           <button
             onClick={() => setShowReportsModal(true)}
             className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-2 cursor-pointer shadow-xs transition-all"
@@ -537,6 +549,12 @@ export default function CentralInquiriesHub({ onNavigateDepartment }: CentralInq
       <DailyFollowupReportsModal
         isOpen={showReportsModal}
         onClose={() => setShowReportsModal(false)}
+      />
+
+      {/* Front Office Font Settings Modal */}
+      <FontSettingsModal
+        isOpen={showFontModal}
+        onClose={() => setShowFontModal(false)}
       />
 
     </div>

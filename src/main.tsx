@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import ErrorBoundary from './components/common/ErrorBoundary'
+import { ThemeTypographyProvider } from './context/ThemeTypographyContext'
 
 createRoot(getElementByIdOrThrow()).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <ThemeTypographyProvider>
+        <App />
+      </ThemeTypographyProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

@@ -23,7 +23,8 @@ import {
   Image as ImageIcon,
   Video as VideoIcon,
   FileUp,
-  ExternalLink
+  ExternalLink,
+  Users
 } from 'lucide-react';
 import { ILAWithYouLogo } from '../components/common/Hero';
 import { 
@@ -449,7 +450,80 @@ export default function CoursePage({ courseTitle: initialTitle = "German Languag
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+
+        {/* ========================================================================= */}
+        {/* COURSE SPECIALTY / INTRODUCTION BANNER ABOVE COURSE LISTS                 */}
+        {/* Concise, high-impact introductory banner (3-4 lines maximum)              */}
+        {/* ========================================================================= */}
+        <div className="rounded-3xl p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-2 border-indigo-500/30 text-white shadow-xl relative overflow-hidden">
+          {/* Ambient Lighting Accents */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-brand-500/15 rounded-full blur-3xl pointer-events-none -translate-y-1/2" />
+          <div className="absolute bottom-0 left-0 w-60 h-60 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none translate-y-1/2" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            {/* Text Narrative (3-4 lines maximum) */}
+            <div className="space-y-2 max-w-4xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-[10px] font-black uppercase tracking-wider backdrop-blur-md">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>Dual-Engine Learning • AI + Native Faculty</span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                  <CheckCircle2 className="w-3 h-3" /> Guaranteed Rapid Fluency
+                </span>
+              </div>
+
+              <h3 className="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight leading-snug">
+                Accelerate Your Career with <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-200 to-yellow-400">IntelliCoach AI™</span> &amp; Specialized Human Tutors
+              </h3>
+
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+                Learn with our 100% AI-powered <strong>IntelliCoach™</strong> for 24/7 real-time accent tuning and interactive speech simulations, paired with specialized native human tutors for quick, easy progression. Master German, IELTS, or Software Tech with us to unlock instant <strong>work-while-study</strong> options, tuition-free public university degrees, and verified career placements across Germany and Europe.
+              </p>
+
+              {/* 4 Compact Value Feature Pills */}
+              <div className="pt-1 flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/10 border border-white/10 text-indigo-200">
+                  <BrainCircuit className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>100% AI IntelliCoach™</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/10 border border-white/10 text-emerald-200">
+                  <Users className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Specialized Human Tutors</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/10 border border-white/10 text-amber-200">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Quick &amp; Easy Progression</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/10 border border-white/10 text-cyan-200">
+                  <Briefcase className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Work-Study &amp; EU Placement</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Right-hand CTA button */}
+            <div className="shrink-0 flex sm:flex-row lg:flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-language-trainer'))}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <BrainCircuit className="w-4 h-4 text-slate-950" />
+                <span>Try IntelliCoach Demo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => openRegistration(`Course: ${activeCourse?.name || 'Education'}`)}
+                className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Enroll Now</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
         
         {/* Section 1: Connected Path Selection (Path → Education Path) */}
         <section id="path-selection" className="scroll-mt-24">
