@@ -26,15 +26,16 @@ const EducationHub: React.FC = () => {
 
   const navigationItems = [
     { id: 'HOD DB', label: 'HOD DB', icon: Database },
+    { id: 'SERVICES & BATCHES', label: 'Path & Batch', icon: Calendar },
+    { id: 'COURSE CREATE', label: 'Course Creator', icon: PlusCircle },
+    { id: 'LIBRARY & CLASS ROOM', label: 'Library & Classroom', icon: BookOpen },
+
     // { id: 'HOD WORK & STUDY', label: 'HOD Work & Study', icon: Briefcase },
     { id: 'COMMUNICATION TRIGGERS', label: 'Comm Triggers', icon: Radio },
     { id: 'SOCIAL MEDIA PROMO', label: 'Social Promo', icon: Megaphone },
     { id: 'INTAKE TRACKING', label: 'Intake Desk', icon: Users },
     // { id: 'TIME TABLE', label: 'Time Table', icon: Clock }, /* Hidden per request */
-    { id: 'LIBRARY & CLASS ROOM', label: 'Library & Classroom', icon: BookOpen },
     // { id: 'STUDENT ROSTER', label: 'Academic Roster', icon: UserCheck }, /* Hidden per request */
-    { id: 'SERVICES & BATCHES', label: 'Path & Batch', icon: Calendar },
-    { id: 'COURSE CREATE', label: 'Course Creator', icon: PlusCircle },
     // { id: 'AI COURSE CREATOR', label: 'AI Creator', icon: Sparkles }, /* Hidden per request */
     { id: 'TASK DELEGATION', label: 'Task Delegation', icon: CheckSquare },
     { id: 'STAFF & ATTENDANCE', label: 'Staff Attendance', icon: Users },
