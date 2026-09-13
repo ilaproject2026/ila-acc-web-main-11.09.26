@@ -883,13 +883,13 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           <button
             type="button"
             id="admin-lib-course-creator-btn"
-            onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
+            onClick={() => setActiveAdminView('COURSE_CREATOR')}
             className={`px-3.5 py-2 text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
               activeAdminView === 'COURSE_CREATOR' 
                 ? 'bg-brand-700 text-white ring-2 ring-brand-400' 
                 : 'bg-brand-600 hover:bg-brand-500 text-white'
             }`}
-            title="Create &amp; Configure New Courses (Launch AI Engine Hub)"
+            title="Create & Configure New Courses (Internal Studio & AI Sync)"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Course Creator</span>
@@ -1059,11 +1059,13 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
+                onClick={() => { window.open('https://ila-ai-engine-hub091026.vercel.app/', '_blank'); }}
                 className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Launch standalone AI Engine Hub in new tab"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Launch AI Engine Hub</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
@@ -1077,7 +1079,7 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           </div>
 
           <ServicesAndBatches 
-            initialTab="CATEGORY" 
+            initialTab={initialSubView === 'COURSE_CREATOR' ? 'COURSE' : 'CATEGORY'} 
             onNavigateTab={(tab) => {
               if (tab === 'LIBRARY & CLASSROOM' || tab === 'ADMIN LIBRARY') {
                 setActiveAdminView('COURSE_LIST');
@@ -1177,10 +1179,10 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px]">
             <span className="text-slate-500 font-medium">Curriculum Studio</span>
             <button
-              onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
+              onClick={() => setActiveAdminView('COURSE_CREATOR')}
               className="font-bold text-brand-600 hover:text-brand-800 flex items-center gap-0.5 cursor-pointer"
             >
-              Course Creator <ExternalLink className="w-3 h-3" />
+              Course Creator <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </aside>
