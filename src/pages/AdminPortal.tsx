@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { 
   Shield, Users, BarChart2, 
-  Building, UserPlus, Maximize2, Minimize2, Activity, Settings, LogOut, Globe, Lock, Unlock, Award, Briefcase, GraduationCap, Plane, FileText, Key, ShieldCheck, DollarSign, Megaphone, Ticket, Building2, Trophy, Bot, Gift,
-  Type, Compass
+  Building, UserPlus, Maximize2, Minimize2, Activity, Settings, LogOut, Globe, Lock, Unlock, Award, Briefcase, GraduationCap, Plane, FileText, Key, ShieldCheck, DollarSign, Megaphone, Ticket, Building2, Trophy, Bot, Gift
 } from 'lucide-react';
 import { getInquiries, getVisitorLogs, getVisitorStats, Inquiry } from '../lib/db';
-import { useThemeTypography } from '../context/ThemeTypographyContext';
+import { supabase } from '../supabaseClient';
 import FinanceCommissionHub from '../components/admin/FinanceCommissionHub';
 import HRConsultantHub from '../components/admin/HRConsultantHub';
 import MarketingStudioHub from '../components/admin/MarketingStudioHub';
@@ -16,7 +15,6 @@ import ExecutiveOverviewHub from '../components/admin/ExecutiveOverviewHub';
 import GMConsole from '../components/admin/GMConsole';
 import ITAdminConsole from '../components/admin/ITAdminConsole';
 import EducationHub from '../components/admin/EducationHub'; // Integrated Education Hub
-import StudentPathStudio from '../components/admin/education/StudentPathStudio'; // Dedicated Student Path Testing & Preview
 import ITMarketingAnalyticsDashboard from '../components/admin/ITMarketingAnalyticsDashboard';
 import ContentCreationTool from '../components/admin/ContentCreationTool';
 import DepartmentApprovalsTab from '../components/admin/DepartmentApprovalsTab';
@@ -25,7 +23,6 @@ import CentralInquiriesHub from '../components/admin/frontoffice/CentralInquirie
 import WalkinIntakeDesk from '../components/admin/frontoffice/WalkinIntakeDesk';
 import OnlineEnquiryFunnel from '../components/admin/frontoffice/OnlineEnquiryFunnel';
 import DepartmentInquiryView from '../components/admin/frontoffice/DepartmentInquiryView';
-import FontSettingsModal from '../components/admin/frontoffice/FontSettingsModal';
 import WorkStudyHub from '../components/admin/WorkStudyHub';
 import StudyAbroadHub from '../components/admin/StudyAbroadHub';
 import JobCareerHub from '../components/admin/JobCareerHub';
@@ -37,11 +34,37 @@ interface VisitorStatType {
 }
 
 export default function AdminPortal() {
-  const { settings, setColorTheme, activeProfile } = useThemeTypography();
-  const isDark = settings.colorTheme === 'dark';
+  // Authentication Guard for Staff/Operations Team
+  const [isAuthenticatedTeam, setIsAuthenticatedTeam] = useState<boolean>(() => {
+    const authRole = localStorage.getItem('ilas_auth_role');
+    return authRole === 'team';
+  });
+  const [userName, setUserName] = useState<string>(() => localStorage.getItem('ilas_user_name') || 'Staff Member');
+
+  useEffect(() => {
+    const handleAuthCheck = () => {
+      const authRole = localStorage.getItem('ilas_auth_role');
+      setIsAuthenticatedTeam(authRole === 'team');
+      setUserName(localStorage.getItem('ilas_user_name') || 'Staff Member');
+    };
+    window.addEventListener('ilas-auth-state-changed', handleAuthCheck);
+    return () => window.removeEventListener('ilas-auth-state-changed', handleAuthCheck);
+  }, []);
+
+  const handleLogout = () => {
+    supabase.auth.signOut().catch(() => {});
+    localStorage.removeItem('ilas_auth_role');
+    localStorage.removeItem('ilas_team_role');
+    localStorage.removeItem('ilas_team_scope');
+    localStorage.removeItem('ilas_user_name');
+    window.dispatchEvent(new CustomEvent('ilas-auth-state-changed'));
+    window.dispatchEvent(new CustomEvent('ilas-team-role-changed'));
+    window.location.hash = '#home';
+  };
 
   const [role, setRole] = useState<string>('Super Admin');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const [showFranchiseModal, setShowFranchiseModal] = useState(false);
   const [franchiseName, setFranchiseName] = useState('');
   const [franchiseEmail, setFranchiseEmail] = useState('');
@@ -53,19 +76,16 @@ export default function AdminPortal() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authCode, setAuthCode] = useState('');
 
-  // Front Office Font & Custom Theme Profiles Modal State
-  const [showFontSettingsModal, setShowFontSettingsModal] = useState(false);
-
   // Allowed Tabs Config
   const allowedTabs: Record<string, string[]> = {
-    'Super Admin': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'super_admin_hub', 'overview', 'gm', 'rewards', 'education', 'student_path', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
-    'CEO': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'overview', 'gm', 'rewards', 'education', 'student_path', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
-    'General Manager': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'gm', 'overview', 'rewards', 'education', 'student_path', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
-    'Tech Admin': ['super_admin_hub', 'overview', 'gm', 'student_path', 'marketing_analytics', 'activity', 'it_admin', 'settings'],
+    'Super Admin': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'super_admin_hub', 'overview', 'gm', 'rewards', 'education', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
+    'CEO': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'overview', 'gm', 'rewards', 'education', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
+    'General Manager': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'gm', 'overview', 'rewards', 'education', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
+    'Tech Admin': ['super_admin_hub', 'overview', 'gm', 'marketing_analytics', 'activity', 'it_admin', 'settings'],
     'Finance Officer': ['all_inquiries', 'sales', 'finance', 'rewards'],
     'HR Manager': ['all_inquiries', 'hr', 'work_while_you_study'],
     'Marketing Exec': ['online_enquiry', 'marketing', 'marketing_analytics', 'rewards'],
-    'Academic Counselor': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'education', 'student_path', 'leads', 'activity']
+    'Academic Counselor': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'education', 'leads', 'activity']
   };
 
   const defaultTabs: Record<string, any> = {
@@ -165,16 +185,51 @@ export default function AdminPortal() {
     ? inquiries 
     : inquiries.filter(item => item.category === activeCategoryFilter);
 
+  if (!isAuthenticatedTeam) {
+    return (
+      <div className="min-h-[85vh] flex items-center justify-center py-16 px-4 bg-slate-900 text-slate-100">
+        <div className="max-w-md w-full bg-slate-800/90 rounded-3xl p-8 border border-slate-700/80 shadow-2xl text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center">
+            <Shield className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 text-xs font-bold border border-amber-500/20">
+              Staff & Operations Security Gate
+            </div>
+            <h2 className="text-xl font-black text-white">Staff Authentication Required</h2>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              The Enterprise Command Center is restricted to authorized operations, counselors, and administrative staff. Please sign in with your staff credentials.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col gap-2.5">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-portal-login', { detail: { tab: 'signin', role: 'team' } }))}
+              className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/25 cursor-pointer"
+            >
+              <Key className="w-4 h-4" /> Sign In as Staff / Operations
+            </button>
+            <button
+              onClick={() => { window.location.hash = '#home'; }}
+              className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-xl transition cursor-pointer"
+            >
+              Return to Public Website
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`min-h-screen font-sans pb-20 transition-colors duration-300 ${isDark ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`min-h-screen font-sans pb-20 transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-slate-50 text-slate-900'}`}>
       
       {/* 1. TOP STATUS BAR (Security & Branding) */}
-      <div className={`${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border-b px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-300`}>
+      <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border-b px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-300`}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-sm">ILA</div>
           <div>
             <span className="font-black tracking-tight text-sm block">ENTERPRISE COMMAND CENTER</span>
-            <span className="text-[10px] text-slate-500 font-bold">Active Role: <span className="text-brand-600 uppercase">{role}</span></span>
+            <span className="text-[10px] text-slate-500 font-bold">Active Role: <span className="text-brand-600 uppercase">{role}</span> ({userName})</span>
           </div>
         </div>
 
@@ -193,11 +248,11 @@ export default function AdminPortal() {
             </button>
           )}
 
-          <button onClick={() => setColorTheme(isDark ? 'standard-light' : 'dark')} className={`p-2 rounded-xl border cursor-pointer ${isDark ? 'hover:bg-slate-800 border-slate-700 text-yellow-400' : 'hover:bg-slate-100 border-slate-200 text-slate-600'}`} title="Toggle Dark Mode">
-            {isDark ? '☀️' : '🌙'}
+          <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded-xl border cursor-pointer ${darkMode ? 'hover:bg-slate-800 border-slate-700 text-yellow-400' : 'hover:bg-slate-100 border-slate-200 text-slate-600'}`} title="Toggle Dark Mode">
+            {darkMode ? '☀️' : '🌙'}
           </button>
 
-          <button onClick={toggleFullScreenWorkspace} className={`p-2 rounded-xl border cursor-pointer ${isDark ? 'hover:bg-slate-800 border-slate-700' : 'hover:bg-slate-100 border-slate-200'}`} title="Full View">
+          <button onClick={toggleFullScreenWorkspace} className={`p-2 rounded-xl border cursor-pointer ${darkMode ? 'hover:bg-slate-800 border-slate-700' : 'hover:bg-slate-100 border-slate-200'}`} title="Full View">
             {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
@@ -209,7 +264,7 @@ export default function AdminPortal() {
             <Globe className="w-3.5 h-3.5" /> Website
           </button>
 
-          <button onClick={() => { window.location.hash = '#home'; setTimeout(() => { window.dispatchEvent(new CustomEvent('open-portal-login')); }, 200); }} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer">
+          <button onClick={handleLogout} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1 border border-red-200/50 cursor-pointer" title="Sign out of Enterprise Command Center">
             <LogOut className="w-3.5 h-3.5" /> Logout
           </button>
         </div>
@@ -237,30 +292,6 @@ export default function AdminPortal() {
               </button>
               <button onClick={() => setActiveTab('online_enquiry')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'online_enquiry' ? 'bg-indigo-600 text-white shadow-xs' : 'hover:bg-slate-100 text-slate-700'}`}>
                 🌐 Online Enquiry Funnel
-              </button>
-            </div>
-
-            {/* Dedicated Font Settings Customization Control */}
-            <div className="pt-2 border-t border-slate-200/80">
-              <button
-                type="button"
-                id="front-office-font-settings-btn"
-                onClick={() => setShowFontSettingsModal(true)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-extrabold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100/90 border border-indigo-200/90 transition-all cursor-pointer shadow-xs group"
-                title="Configure Front Office & Global Portal Font Family, Weight & Scale"
-              >
-                <div className="flex items-center gap-2">
-                  <Type className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
-                  <span>Font Settings</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded border border-indigo-200">
-                    {activeProfile.name}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold bg-white text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs">
-                    {settings.fontFamily}
-                  </span>
-                </div>
               </button>
             </div>
           </div>
@@ -321,15 +352,6 @@ export default function AdminPortal() {
               </button>
               <button onClick={() => setActiveTab('jobs')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'jobs' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-50 text-slate-700'}`}>
                 <Award className="w-3.5 h-3.5" /> Job and Career Hub
-              </button>
-              <button onClick={() => setActiveTab('student_path')} className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'student_path' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xs' : 'hover:bg-slate-50 text-slate-700'}`}>
-                <div className="flex items-center gap-2">
-                  <Compass className={`w-3.5 h-3.5 ${activeTab === 'student_path' ? 'text-amber-300' : 'text-indigo-600'}`} />
-                  <span>Student Path</span>
-                </div>
-                <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${activeTab === 'student_path' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-700'}`}>
-                  Live Preview
-                </span>
               </button>
             </div>
           </div>
@@ -431,29 +453,6 @@ export default function AdminPortal() {
                 subtitle="Track walk-in intakes, language batches, and classroom enrollment passes."
               />
               <ContentCreationTool departmentName="All Courses Hub" />
-            </div>
-          )}
-
-          {/* DEDICATED STUDENT PATH MASTER CONSOLE */}
-          {activeTab === 'student_path' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                <div>
-                  <span className="text-[10px] font-black uppercase bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full border border-indigo-200">
-                    Administrative Testing Suite &amp; Live Monitoring
-                  </span>
-                  <h2 className="text-2xl font-black text-slate-900 mt-1.5">Student Path Master Console</h2>
-                  <p className="text-xs text-slate-500">Real-time simulation and flow verification across all 5 student learning modalities.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setActiveTab('education')} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer">
-                    Open All Courses Hub →
-                  </button>
-                </div>
-              </div>
-
-              <StudentPathStudio />
-              <ContentCreationTool departmentName="Student Path Master" />
             </div>
           )}
 
@@ -570,12 +569,6 @@ export default function AdminPortal() {
           </div>
         </div>
       )}
-
-      {/* FRONT OFFICE GLOBAL FONT SETTINGS MODAL */}
-      <FontSettingsModal 
-        isOpen={showFontSettingsModal} 
-        onClose={() => setShowFontSettingsModal(false)} 
-      />
 
     </div>
   );

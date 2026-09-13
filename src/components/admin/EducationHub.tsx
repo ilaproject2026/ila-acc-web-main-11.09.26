@@ -125,7 +125,13 @@ const EducationHub: React.FC = () => {
       case 'SERVICES & BATCHES':
       case 'COURSE CREATE':
       case 'COURSE CREATOR':
-        return <LibraryAndClassRoom onNavigateTab={(tab) => setActiveTab(tab)} initialSubView="COURSE_CREATOR" />;
+        return <LibraryAndClassRoom onNavigateTab={(tab) => {
+          if (tab === 'COURSE CREATE') {
+            window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/';
+          } else {
+            setActiveTab(tab);
+          }
+        }} initialSubView="COURSE_CREATOR" />;
       case 'AI COURSE CREATOR':
         return <AICourseCreator onNavigateTab={(tab) => setActiveTab(tab)} />;
       case 'HOD DB':
@@ -143,7 +149,7 @@ const EducationHub: React.FC = () => {
                 <button onClick={() => setActiveTab('ADMIN LIBRARY')} className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
                   <BookOpen className="w-4 h-4" /> Open Admin Library
                 </button>
-                <button onClick={() => setActiveTab('COURSE CREATE')} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                <button onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
                   <PlusCircle className="w-4 h-4" /> Create Course
                 </button>
               </div>
@@ -340,7 +346,13 @@ const EducationHub: React.FC = () => {
                 <button
                   id={tabDomId}
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    if (item.id === 'COURSE CREATE') {
+                      window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/';
+                    } else {
+                      setActiveTab(item.id);
+                    }
+                  }}
                   className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     isActive 
                       ? 'bg-brand-600 text-white shadow-xs font-black ring-1 ring-brand-400/40' 

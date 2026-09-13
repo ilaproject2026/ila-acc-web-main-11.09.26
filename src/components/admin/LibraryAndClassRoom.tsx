@@ -883,13 +883,13 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           <button
             type="button"
             id="admin-lib-course-creator-btn"
-            onClick={() => setActiveAdminView('COURSE_CREATOR')}
+            onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
             className={`px-3.5 py-2 text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
               activeAdminView === 'COURSE_CREATOR' 
                 ? 'bg-brand-700 text-white ring-2 ring-brand-400' 
                 : 'bg-brand-600 hover:bg-brand-500 text-white'
             }`}
-            title="Create &amp; Configure New Courses"
+            title="Create &amp; Configure New Courses (Launch AI Engine Hub)"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Course Creator</span>
@@ -1059,6 +1059,14 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
+                onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
+                className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Launch AI Engine Hub</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveAdminView('COURSE_LIST')}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
@@ -1169,7 +1177,7 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px]">
             <span className="text-slate-500 font-medium">Curriculum Studio</span>
             <button
-              onClick={() => onNavigateTab?.('COURSE CREATE')}
+              onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
               className="font-bold text-brand-600 hover:text-brand-800 flex items-center gap-0.5 cursor-pointer"
             >
               Course Creator <ExternalLink className="w-3 h-3" />
