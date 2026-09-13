@@ -6,18 +6,19 @@ import AICourseCreator from './AICourseCreator';
 import AdminTimeTableHub from './AdminTimeTableHub';
 import AutomatedCommTriggersHub from '../education/AutomatedCommTriggersHub';
 import HODWorkStudyHub from './HODWorkStudyHub';
+import StudentPathStudio from './education/StudentPathStudio';
 import { 
   BookOpen, Calendar, PlusCircle, Sparkles, Users, UserCheck, 
   CheckSquare, Clock, Database, UserPlus, HelpCircle, Award, 
   Layers, ArrowRight, Activity, Search, ChevronLeft, ChevronRight,
-  LayoutGrid, List, SlidersHorizontal, Radio, MessageSquare, Zap, Briefcase, Megaphone
+  LayoutGrid, List, SlidersHorizontal, Radio, MessageSquare, Zap, Briefcase, Megaphone, Compass
 } from 'lucide-react';
 import { getInquiries, getStaffRegistry, getAttendanceLogs, getGlobalCourses } from '../../lib/db';
 import { HubSocialPromoView } from './common/HubSocialPromoView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
 
 const EducationHub: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('LIBRARY & CLASS ROOM');
+  const [activeTab, setActiveTab] = useState<string>('HOD DB');
   const [isWrapMode, setIsWrapMode] = useState<boolean>(false);
   const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
   const [canScrollRight, setCanScrollRight] = useState<boolean>(true);
@@ -25,17 +26,16 @@ const EducationHub: React.FC = () => {
   const navContainerRef = useRef<HTMLDivElement>(null);
 
   const navigationItems = [
-    { id: 'HOD WORK & STUDY', label: 'HOD Work & Study', icon: Briefcase },
+    { id: 'HOD DB', label: 'HOD DB', icon: Database },
+    { id: 'ADMIN LIBRARY', label: 'Admin Library', icon: BookOpen },
+    { id: 'STUDENT PATHS', label: 'Student Paths', icon: Compass },
+    { id: 'COURSE CREATE', label: 'Course Creator', icon: PlusCircle },
+    { id: 'AI COURSE CREATOR', label: 'AI Creator', icon: Sparkles },
     { id: 'COMMUNICATION TRIGGERS', label: 'Comm Triggers', icon: Radio },
     { id: 'SOCIAL MEDIA PROMO', label: 'Social Promo', icon: Megaphone },
     { id: 'INTAKE TRACKING', label: 'Intake Desk', icon: Users },
     { id: 'TIME TABLE', label: 'Time Table', icon: Clock },
-    { id: 'HOD DB', label: 'HOD DB', icon: Database },
-    { id: 'LIBRARY & CLASS ROOM', label: 'Library & Classroom', icon: BookOpen },
     { id: 'STUDENT ROSTER', label: 'Academic Roster', icon: UserCheck },
-    { id: 'SERVICES & BATCHES', label: 'Path & Batch', icon: Calendar },
-    { id: 'COURSE CREATE', label: 'Course Creator', icon: PlusCircle },
-    { id: 'AI COURSE CREATOR', label: 'AI Creator', icon: Sparkles },
     { id: 'TASK DELEGATION', label: 'Task Delegation', icon: CheckSquare },
     { id: 'STAFF & ATTENDANCE', label: 'Staff Attendance', icon: Users },
     { id: 'STUDENT ATTN', label: 'Student Attendance', icon: UserCheck },
@@ -86,6 +86,16 @@ const EducationHub: React.FC = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'ADMIN LIBRARY':
+      case 'LIBRARY & CLASS ROOM':
+        return <LibraryAndClassRoom onNavigateTab={(tab) => setActiveTab(tab)} />;
+      case 'STUDENT PATH':
+      case 'STUDENT PATHS':
+        return (
+          <div className="p-3 md:p-6 max-w-7xl mx-auto animate-in fade-in">
+            <StudentPathStudio />
+          </div>
+        );
       case 'HOD WORK & STUDY':
         return (
           <div className="p-4 md:p-6 max-w-7xl mx-auto animate-in fade-in">
@@ -95,7 +105,7 @@ const EducationHub: React.FC = () => {
       case 'COMMUNICATION TRIGGERS':
         return (
           <div className="p-4 md:p-6 max-w-7xl mx-auto animate-in fade-in">
-            <AutomatedCommTriggersHub onNavigateToCourseCatalog={() => setActiveTab('LIBRARY & CLASS ROOM')} />
+            <AutomatedCommTriggersHub onNavigateToCourseCatalog={() => setActiveTab('ADMIN LIBRARY')} />
           </div>
         );
       case 'SOCIAL MEDIA PROMO':
@@ -112,13 +122,10 @@ const EducationHub: React.FC = () => {
         );
       case 'TIME TABLE':
         return <AdminTimeTableHub />;
-      case 'LIBRARY & CLASS ROOM':
-        return <LibraryAndClassRoom onNavigateTab={(tab) => setActiveTab(tab)} />;
       case 'SERVICES & BATCHES':
-        return <ServicesAndBatches />;
       case 'COURSE CREATE':
       case 'COURSE CREATOR':
-        return <CourseCreator onNavigateTab={(tab) => setActiveTab(tab)} />;
+        return <LibraryAndClassRoom onNavigateTab={(tab) => setActiveTab(tab)} initialSubView="COURSE_CREATOR" />;
       case 'AI COURSE CREATOR':
         return <AICourseCreator onNavigateTab={(tab) => setActiveTab(tab)} />;
       case 'HOD DB':
@@ -133,8 +140,8 @@ const EducationHub: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-0.5">Real-time oversight of courses, active batches, academic faculty, and classroom allocation.</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setActiveTab('LIBRARY & CLASS ROOM')} className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
-                  <BookOpen className="w-4 h-4" /> Open Classroom
+                <button onClick={() => setActiveTab('ADMIN LIBRARY')} className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                  <BookOpen className="w-4 h-4" /> Open Admin Library
                 </button>
                 <button onClick={() => setActiveTab('COURSE CREATE')} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
                   <PlusCircle className="w-4 h-4" /> Create Course
@@ -253,8 +260,8 @@ const EducationHub: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-0.5">Synchronized with master academic database, cloud records, and attendance logs.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setActiveTab('LIBRARY & CLASS ROOM')} className="px-3.5 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-brand-500">
-                  Classroom View →
+                <button onClick={() => setActiveTab('ADMIN LIBRARY')} className="px-3.5 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-brand-500 flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4" /> Admin Library →
                 </button>
               </div>
             </div>

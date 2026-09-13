@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   Shield, Users, BarChart2, 
   Building, UserPlus, Maximize2, Minimize2, Activity, Settings, LogOut, Globe, Lock, Unlock, Award, Briefcase, GraduationCap, Plane, FileText, Key, ShieldCheck, DollarSign, Megaphone, Ticket, Building2, Trophy, Bot, Gift,
-  Type
+  Type, Compass
 } from 'lucide-react';
 import { getInquiries, getVisitorLogs, getVisitorStats, Inquiry } from '../lib/db';
 import { useThemeTypography } from '../context/ThemeTypographyContext';
@@ -16,6 +16,7 @@ import ExecutiveOverviewHub from '../components/admin/ExecutiveOverviewHub';
 import GMConsole from '../components/admin/GMConsole';
 import ITAdminConsole from '../components/admin/ITAdminConsole';
 import EducationHub from '../components/admin/EducationHub'; // Integrated Education Hub
+import StudentPathStudio from '../components/admin/education/StudentPathStudio'; // Dedicated Student Path Testing & Preview
 import ITMarketingAnalyticsDashboard from '../components/admin/ITMarketingAnalyticsDashboard';
 import ContentCreationTool from '../components/admin/ContentCreationTool';
 import DepartmentApprovalsTab from '../components/admin/DepartmentApprovalsTab';
@@ -57,14 +58,14 @@ export default function AdminPortal() {
 
   // Allowed Tabs Config
   const allowedTabs: Record<string, string[]> = {
-    'Super Admin': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'super_admin_hub', 'overview', 'gm', 'rewards', 'education', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
-    'CEO': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'overview', 'gm', 'rewards', 'education', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
-    'General Manager': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'gm', 'overview', 'rewards', 'education', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
-    'Tech Admin': ['super_admin_hub', 'overview', 'gm', 'marketing_analytics', 'activity', 'it_admin', 'settings'],
+    'Super Admin': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'super_admin_hub', 'overview', 'gm', 'rewards', 'education', 'student_path', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
+    'CEO': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'overview', 'gm', 'rewards', 'education', 'student_path', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
+    'General Manager': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'gm', 'overview', 'rewards', 'education', 'student_path', 'study_abroad', 'visa', 'work_while_you_study', 'jobs', 'leads', 'analytics', 'marketing_analytics', 'sales', 'hr', 'finance', 'marketing', 'activity', 'it_admin', 'settings'],
+    'Tech Admin': ['super_admin_hub', 'overview', 'gm', 'student_path', 'marketing_analytics', 'activity', 'it_admin', 'settings'],
     'Finance Officer': ['all_inquiries', 'sales', 'finance', 'rewards'],
     'HR Manager': ['all_inquiries', 'hr', 'work_while_you_study'],
     'Marketing Exec': ['online_enquiry', 'marketing', 'marketing_analytics', 'rewards'],
-    'Academic Counselor': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'education', 'leads', 'activity']
+    'Academic Counselor': ['all_inquiries', 'walkin_intake', 'online_enquiry', 'education', 'student_path', 'leads', 'activity']
   };
 
   const defaultTabs: Record<string, any> = {
@@ -321,6 +322,15 @@ export default function AdminPortal() {
               <button onClick={() => setActiveTab('jobs')} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'jobs' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-50 text-slate-700'}`}>
                 <Award className="w-3.5 h-3.5" /> Job and Career Hub
               </button>
+              <button onClick={() => setActiveTab('student_path')} className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'student_path' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xs' : 'hover:bg-slate-50 text-slate-700'}`}>
+                <div className="flex items-center gap-2">
+                  <Compass className={`w-3.5 h-3.5 ${activeTab === 'student_path' ? 'text-amber-300' : 'text-indigo-600'}`} />
+                  <span>Student Path</span>
+                </div>
+                <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${activeTab === 'student_path' ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-700'}`}>
+                  Live Preview
+                </span>
+              </button>
             </div>
           </div>
 
@@ -421,6 +431,29 @@ export default function AdminPortal() {
                 subtitle="Track walk-in intakes, language batches, and classroom enrollment passes."
               />
               <ContentCreationTool departmentName="All Courses Hub" />
+            </div>
+          )}
+
+          {/* DEDICATED STUDENT PATH MASTER CONSOLE */}
+          {activeTab === 'student_path' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full border border-indigo-200">
+                    Administrative Testing Suite &amp; Live Monitoring
+                  </span>
+                  <h2 className="text-2xl font-black text-slate-900 mt-1.5">Student Path Master Console</h2>
+                  <p className="text-xs text-slate-500">Real-time simulation and flow verification across all 5 student learning modalities.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setActiveTab('education')} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer">
+                    Open All Courses Hub →
+                  </button>
+                </div>
+              </div>
+
+              <StudentPathStudio />
+              <ContentCreationTool departmentName="Student Path Master" />
             </div>
           )}
 

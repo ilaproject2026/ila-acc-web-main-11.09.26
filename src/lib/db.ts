@@ -125,6 +125,25 @@ export const generateUniqueCode = (prefix: string, name: string): string => {
   return `${cleanPrefix}-${slug}-${randomNum}`;
 };
 
+export const generateCompositeCourseId = (
+  category?: string,
+  path?: string,
+  batch?: string,
+  courseName?: string
+): string => {
+  const clean = (val?: string, fallback = 'GEN', len = 4) => {
+    if (!val) return fallback;
+    const stripped = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    return stripped.length > 0 ? stripped.substring(0, len) : fallback;
+  };
+  const catSlug = clean(category, 'CAT', 3);
+  const pathSlug = clean(path, 'PTH', 3);
+  const batchSlug = clean(batch, 'BAT', 3);
+  const nameSlug = clean(courseName, 'CRS', 4);
+  const randomNum = Math.floor(100 + Math.random() * 900);
+  return `${catSlug}-${pathSlug}-${batchSlug}-${nameSlug}-${randomNum}`;
+};
+
 export interface GlobalPath {
   id: string;
   name: string;
@@ -468,6 +487,7 @@ export interface AICoursePayload {
 
 export interface GlobalCourse {
   id: string;
+  compositeCourseId?: string;
   name: string;
   top_title?: string;
   subtitle: string;
@@ -904,7 +924,10 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     try {
       const parsed: GlobalCourse[] = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.some(c => c.name === 'German Language Test 1')) {
-        return parsed.sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
+        return parsed.map(c => ({
+          ...c,
+          compositeCourseId: c.compositeCourseId || generateCompositeCourseId(c.category, c.pathName || c.pathId, c.batchName || c.batchId, c.name)
+        })).sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
       }
     } catch (e) {
       console.warn('Failed to parse ilas_courses from localStorage, resetting to seed:', e);
@@ -913,6 +936,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
   const seed: GlobalCourse[] = [
     { 
       id: '1', 
+      compositeCourseId: 'EDU-GER-M01-GRM1-101',
       name: 'German Language Test 1', 
       top_title: 'German Language & Proficiency', 
       subtitle: 'Goethe & Telc Standard Certification Pathways with Clinical & Technical German', 
@@ -941,6 +965,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     },
     { 
       id: '2', 
+      compositeCourseId: 'EDU-IEL-E01-IEL2-202',
       name: 'IELTS Test 2', 
       top_title: 'English Language Mastery', 
       subtitle: 'Target Band 8.0+ Academic & General Strategies with AI Essay Evaluation', 
@@ -968,6 +993,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     },
     { 
       id: '3', 
+      compositeCourseId: 'IT-FST-W01-SFT3-303',
       name: 'Software Test 3', 
       top_title: 'Full-Stack & Cloud Architecture', 
       subtitle: 'Modern React, Node, DevOps, Microservices & AI Pair Programming', 
@@ -995,6 +1021,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     },
     { 
       id: '4', 
+      compositeCourseId: 'ERP-FIC-C01-SAP4-404',
       name: 'SAP Course Test 4', 
       top_title: 'Enterprise Software Training', 
       subtitle: 'Financials (FICO), Supply Chain & Logistics (MM/SD) Workflows', 
@@ -1022,6 +1049,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     },
     { 
       id: '5', 
+      compositeCourseId: 'MKT-ADS-E01-SOC5-505',
       name: 'Social Media & Growth AI', 
       top_title: 'Growth Marketing & Campaign Operations', 
       subtitle: 'Meta Ads, Google Ads, Viral Content Strategy & AI Copywriting', 
@@ -1049,6 +1077,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     },
     { 
       id: '6', 
+      compositeCourseId: 'MED-FSP-M01-MED6-606',
       name: 'Medical Terminology & FSP', 
       top_title: 'Healthcare German & Clinical Practice', 
       subtitle: 'Fachsprachprüfung (FSP) Preparation for Doctors, Dentists & Nurses', 

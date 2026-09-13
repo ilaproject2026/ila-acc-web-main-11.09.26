@@ -8,12 +8,16 @@ import {
   ChevronRight, ArrowRight, ExternalLink, Bookmark, ShieldCheck, 
   Terminal, Sliders, Globe, Zap, Check, Copy, RefreshCw, PlusCircle,
   User, UserPlus, Radio, Award, AlertCircle, Lock, LayoutGrid, List,
-  Filter, ChevronDown, BarChart2, Cpu
+  Filter, ChevronDown, BarChart2, Cpu, Compass, Presentation, BrainCircuit, Flame, FolderPlus
 } from 'lucide-react';
 import { getGlobalCourses, setGlobalCourses, GlobalCourse, EnrolledStudent, getGlobalCategories, GlobalCategory } from '../../lib/db';
+import CourseCreator from './CourseCreator';
+import ServicesAndBatches from './ServicesAndBatches';
+import StudentPathStudio, { StudentModality } from './education/StudentPathStudio';
 
 interface LibraryAndClassRoomProps {
   onNavigateTab?: (tabName: string) => void;
+  initialSubView?: 'CLASSROOM' | 'COURSE_LIST' | 'COURSE_CREATOR' | 'PATH_BATCH_CREATOR';
 }
 
 interface ChapterItem {
@@ -48,7 +52,34 @@ interface SubtitleItem {
   practicePrompt?: string;
 }
 
-const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab }) => {
+const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab, initialSubView = 'COURSE_CREATOR' }) => {
+  // Consolidated Course Management View: 'COURSE_CREATOR' | 'COURSE_LIST' | 'CLASSROOM'
+  const [activeAdminView, setActiveAdminView] = useState<'COURSE_CREATOR' | 'COURSE_LIST' | 'CLASSROOM'>(
+    initialSubView === 'COURSE_LIST' ? 'COURSE_LIST' : 'COURSE_CREATOR'
+  );
+
+  // Student Path Preview Modal State
+  const [showStudentPathModal, setShowStudentPathModal] = useState<boolean>(false);
+  const [selectedStudentModality, setSelectedStudentModality] = useState<StudentModality>('INTELLI_COACH');
+  const [isStudentPathDropdownOpen, setIsStudentPathDropdownOpen] = useState<boolean>(false);
+  const studentPathDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialSubView) {
+      setActiveAdminView(initialSubView === 'COURSE_LIST' ? 'COURSE_LIST' : 'COURSE_CREATOR');
+    }
+  }, [initialSubView]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (studentPathDropdownRef.current && !studentPathDropdownRef.current.contains(e.target as Node)) {
+        setIsStudentPathDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // 1. Courses State from Course Creator / DB
   const [courses, setCourses] = useState<GlobalCourse[]>([]);
   const [availableCategories, setAvailableCategories] = useState<GlobalCategory[]>([]);
@@ -824,7 +855,234 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
         </div>
       )}
 
+      {/* =========================================================================
+          TOP EXECUTIVE HEADER & SINGLE-TIER TOOLBAR
+      ========================================================================= */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        
+        {/* Left: Section Identity */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 px-2.5 py-0.5 rounded-full border border-brand-200">
+              Admin Academy &amp; Course Management
+            </span>
+            <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+              {courses.length} Active Courses
+            </span>
+          </div>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Admin Library</span>
+            <span className="text-xs font-normal text-slate-500 hidden sm:inline">— Master Classroom &amp; Curriculum Studio</span>
+          </h2>
+        </div>
+
+        {/* Right: Clean Single-Tier Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap self-start md:self-center">
+          
+          {/* 1. Course Creator Button */}
+          <button
+            type="button"
+            id="admin-lib-course-creator-btn"
+            onClick={() => setActiveAdminView('COURSE_CREATOR')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeAdminView === 'COURSE_CREATOR' 
+                ? 'bg-brand-700 text-white ring-2 ring-brand-400' 
+                : 'bg-brand-600 hover:bg-brand-500 text-white'
+            }`}
+            title="Create &amp; Configure New Courses"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Course Creator</span>
+          </button>
+
+
+          {/* 3. Course List Button */}
+          <button
+            type="button"
+            id="admin-lib-course-list-btn"
+            onClick={() => setActiveAdminView('COURSE_LIST')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeAdminView === 'COURSE_LIST' 
+                ? 'bg-slate-950 text-white ring-2 ring-slate-400' 
+                : 'bg-slate-900 hover:bg-slate-800 text-white'
+            }`}
+            title="View Full Course Inventory &amp; Categories"
+          >
+            <List className="w-4 h-4" />
+            <span>Course List</span>
+          </button>
+
+          {/* 4. Student Paths Dropdown Menu */}
+          <div className="relative" ref={studentPathDropdownRef}>
+            <button
+              type="button"
+              id="admin-lib-student-path-dropdown-btn"
+              onClick={() => setIsStudentPathDropdownOpen(!isStudentPathDropdownOpen)}
+              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+              title="Test and preview student learning modalities"
+            >
+              <Compass className="w-4 h-4 text-amber-300" />
+              <span>Student Paths</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isStudentPathDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown Popover */}
+            {isStudentPathDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 text-white">
+                <div className="px-3 py-2 border-b border-slate-800">
+                  <div className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">
+                    Student Learning Modalities
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Live interactive sandbox preview
+                  </div>
+                </div>
+
+                <div className="py-1 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudentModality('INTELLI_COACH');
+                      setShowStudentPathModal(true);
+                      setIsStudentPathDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-800 transition-all flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <BrainCircuit className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-white group-hover:text-indigo-300">IntelliCourse / IntelliCoach</div>
+                      <div className="text-[10px] text-slate-400">Adaptive AI tutor &amp; CEFR milestones</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudentModality('SLIDE_AI');
+                      setShowStudentPathModal(true);
+                      setIsStudentPathDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-800 transition-all flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                      <Presentation className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-white group-hover:text-purple-300">Slide + AI</div>
+                      <div className="text-[10px] text-slate-400">Side book view + slide screen (no chat)</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudentModality('VIDEO_AI');
+                      setShowStudentPathModal(true);
+                      setIsStudentPathDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-800 transition-all flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                      <Video className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-white group-hover:text-emerald-300">Video + AI</div>
+                      <div className="text-[10px] text-slate-400">Side book view + video player + index</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudentModality('LIVE_MEET');
+                      setShowStudentPathModal(true);
+                      setIsStudentPathDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-800 transition-all flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-300 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-white group-hover:text-blue-300">1-to-1 &amp; 1-to-Group</div>
+                      <div className="text-[10px] text-slate-400">Google Meet-style video controls &amp; chat</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudentModality('SPORTS_CAMP');
+                      setShowStudentPathModal(true);
+                      setIsStudentPathDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-800 transition-all flex items-center gap-2.5 cursor-pointer group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                      <Flame className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-white group-hover:text-amber-300">Sports &amp; Camp Classes</div>
+                      <div className="text-[10px] text-slate-400">Online &amp; Offline mode switcher</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      {/* RENDER FULLY INTEGRATED COURSE CREATOR WORKSPACE (HOUSING CATEGORIES, PATHS, BATCHES & COURSE CURRICULUM) */}
+      {activeAdminView === 'COURSE_CREATOR' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-brand-900 text-white p-4 sm:p-5 rounded-2xl border border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-brand-500 text-white px-2.5 py-0.5 rounded-full">
+                  Master Course Creator
+                </span>
+                <span className="text-[10px] text-slate-300 font-semibold">
+                  Integrated 4-Stage Academic Suite
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg md:text-xl font-black text-white">
+                Course Creator Studio &amp; Academic Workspace
+              </h2>
+              <p className="text-xs text-slate-300 max-w-2xl">
+                Consolidated end-to-end creation suite: define Categories &amp; Tracks, configure Education Paths, allocate Batch Slots &amp; Timings, and build complete courses synced to the Admin Library.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveAdminView('COURSE_LIST')}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <List className="w-4 h-4 text-brand-300" />
+                <span>View Course List</span>
+              </button>
+            </div>
+          </div>
+
+          <ServicesAndBatches 
+            initialTab="CATEGORY" 
+            onNavigateTab={(tab) => {
+              if (tab === 'LIBRARY & CLASSROOM' || tab === 'ADMIN LIBRARY') {
+                setActiveAdminView('COURSE_LIST');
+              } else {
+                onNavigateTab?.(tab);
+              }
+            }} 
+          />
+        </div>
+      )}
+
       {/* Main 3-Column Classroom Layout (Maximized Video Canvas, Zero Clutter) */}
+      {activeAdminView === 'CLASSROOM' && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
         
         {/* =========================================================================
@@ -1563,13 +1821,37 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
         </aside>
 
       </div>
+      )}
 
 
       {/* =========================================================================
           BOTTOM SECTION: DUAL LIBRARY DIRECTORY & AI CLASS EXECUTION CATALOG
       ========================================================================= */}
+      {activeAdminView === 'COURSE_LIST' && (
       <section className="w-full bg-white rounded-3xl border border-slate-200 p-5 md:p-6 shadow-sm space-y-5">
         
+        {/* Banner if in Course List mode */}
+        {activeAdminView === 'COURSE_LIST' && (
+          <div className="p-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl flex items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+                <List className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black">Consolidated Academic Course Inventory &amp; Category Directory</h3>
+                <p className="text-[11px] text-slate-300">Click on any course's "Start Class" button to launch the live classroom simulator.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveAdminView('COURSE_CREATOR')}
+              className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+            >
+              <PlusCircle className="w-3.5 h-3.5" /> + New Course
+            </button>
+          </div>
+        )}
+
         {/* Streamlined Toolbar: Dual Library Sub-Navigation Tabs + Category Dropdown on Left, View Switcher on Right */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           
@@ -1770,6 +2052,20 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
                         <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
                           {course.subtitle || 'Comprehensive certification pathway.'}
                         </p>
+                        
+                        {/* Structured Composite Course ID & Hierarchy */}
+                        <div className="mt-2 space-y-1">
+                          <span className="font-mono text-[9px] font-black bg-slate-900 text-amber-300 px-2 py-0.5 rounded-md border border-slate-700 shadow-2xs inline-block">
+                            {course.compositeCourseId || course.id}
+                          </span>
+                          <div className="flex items-center gap-1 text-[9px] text-slate-500 font-semibold truncate">
+                            <span className="text-brand-900 truncate max-w-[80px]" title={course.category}>{course.category || 'General'}</span>
+                            <span>›</span>
+                            <span className="text-indigo-800 truncate max-w-[80px]" title={course.pathName || course.methods}>{course.pathName || course.methods || 'Path'}</span>
+                            <span>›</span>
+                            <span className="text-emerald-800 truncate max-w-[80px]" title={course.batchName}>{course.batchName || 'Open Batch'}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1842,6 +2138,9 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-bold text-[10px] bg-slate-900 text-amber-300 px-2 py-0.5 rounded-md border border-slate-700 shadow-2xs shrink-0">
+                          {course.compositeCourseId || course.id}
+                        </span>
                         <h4 className={`text-xs font-black truncate ${
                           isCurrentlyActive ? 'text-brand-900' : 'text-slate-900'
                         }`}>
@@ -1868,6 +2167,15 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500 truncate mt-0.5">{course.subtitle}</p>
+                      
+                      {/* Hierarchical Trail */}
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium mt-1 flex-wrap">
+                        <span className="text-brand-900 font-bold bg-brand-50 px-1.5 py-0.2 rounded border border-brand-200">{course.category || 'General'}</span>
+                        <span className="text-slate-300">›</span>
+                        <span className="text-indigo-900 font-semibold bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">{course.pathName || course.methods || 'Education Path'}</span>
+                        <span className="text-slate-300">›</span>
+                        <span className="text-emerald-900 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">{course.batchName || 'Open Batch'}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1903,6 +2211,7 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
         )}
 
       </section>
+      )}
 
       {/* =========================================================================
           MODALS: GOOGLE LENS, COMMAND PALETTE & SETTINGS
@@ -2118,6 +2427,20 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
                 Save & Apply Settings
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Student Path Interactive Preview Modal */}
+      {showStudentPathModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 md:p-6 animate-in fade-in">
+          <div className="w-full max-w-7xl max-h-[92vh] overflow-hidden rounded-3xl shadow-2xl">
+            <StudentPathStudio
+              isModal={true}
+              initialModality={selectedStudentModality}
+              selectedCourseId={activeCourse.id}
+              onClose={() => setShowStudentPathModal(false)}
+            />
           </div>
         </div>
       )}

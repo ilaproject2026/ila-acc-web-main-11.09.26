@@ -27,9 +27,13 @@ import {
 import { HubAutoTriggerView } from './common/HubAutoTriggerView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
 
-export const WorkStudyHub: React.FC = () => {
+interface WorkStudyHubProps {
+  initialTab?: 'packages' | 'hod' | 'promote_jd' | 'auto_trigger' | 'intake_tracking';
+}
+
+export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packages' }) => {
   // Hub Main Sub-Navigation: 'packages' (CRUD) | 'hod' | 'promote_jd' | 'auto_trigger' | 'intake_tracking'
-  const [hubTab, setHubTab] = useState<'packages' | 'hod' | 'promote_jd' | 'auto_trigger' | 'intake_tracking'>('packages');
+  const [hubTab, setHubTab] = useState<'packages' | 'hod' | 'promote_jd' | 'auto_trigger' | 'intake_tracking'>(initialTab);
 
   // ================= 1. DYNAMIC PACKAGES (CRUD) STATE =================
   const [packages, setPackages] = useState<WorkStudyPackage[]>([]);
@@ -366,12 +370,12 @@ export const WorkStudyHub: React.FC = () => {
           onClick={() => setHubTab('hod')}
           className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             hubTab === 'hod'
-              ? 'bg-slate-900 text-white shadow-md'
+              ? 'bg-slate-900 text-white shadow-md ring-2 ring-indigo-400/30'
               : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
           }`}
         >
           <Briefcase className="w-4 h-4 text-indigo-400" />
-          <span>HOD Console &amp; Candidates</span>
+          <span>HOD Work &amp; Study Console</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-black">
             {candidates.length} Candidates
           </span>

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { 
   getGlobalCourses, setGlobalCourses, getGlobalPaths, setGlobalPaths, getGlobalBatches, setGlobalBatches,
-  getGlobalCategories, GlobalCategory,
+  getGlobalCategories, GlobalCategory, generateCompositeCourseId,
   GlobalCourse, GlobalPath, GlobalBatch, CourseMaterialItem 
 } from '../../lib/db';
 
@@ -22,13 +22,28 @@ const DEFAULT_MATERIALS: CourseMaterialItem[] = [
 
 interface CourseCreatorProps {
   onNavigateTab?: (tabName: string, subTab?: string) => void;
+  inheritedCategory?: string;
+  inheritedSubCategory?: string;
+  inheritedPathId?: string;
+  inheritedBatchId?: string;
+  batchNotApplicable?: boolean;
+  isWizardMode?: boolean;
 }
 
-const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
+const CourseCreator: React.FC<CourseCreatorProps> = ({ 
+  onNavigateTab, 
+  inheritedCategory, 
+  inheritedSubCategory, 
+  inheritedPathId, 
+  inheritedBatchId, 
+  batchNotApplicable = false,
+  isWizardMode = false 
+}) => {
   const [courseList, setCourseList] = useState<GlobalCourse[]>([]);
   const [availablePaths, setAvailablePaths] = useState<GlobalPath[]>([]);
   const [availableBatches, setAvailableBatches] = useState<GlobalBatch[]>([]);
   const [availableCategories, setAvailableCategories] = useState<GlobalCategory[]>([]);
+  const [saveFeedback, setSaveFeedback] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
   useEffect(() => {
     const loadData = () => {
@@ -69,6 +84,38 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
   const [courseStructure, setCourseStructure] = useState('');
   const [materialItems, setMaterialItems] = useState<CourseMaterialItem[]>(DEFAULT_MATERIALS);
   const [selectedCourse, setSelectedCourse] = useState<GlobalCourse | null>(null);
+
+  // Multi-select state
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState<boolean>(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
+  const [selectedPathIds, setSelectedPathIds] = useState<string[]>([]);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  const [isOpenSchedule, setIsOpenSchedule] = useState<boolean>(batchNotApplicable);
+
+  useEffect(() => {
+    setIsOpenSchedule(batchNotApplicable);
+  }, [batchNotApplicable]);
+
+  // Synchronize inherited wizard context
+  useEffect(() => {
+    if (inheritedCategory) {
+      setCategory(inheritedCategory);
+      setSelectedCategories(prev => prev.includes(inheritedCategory) ? prev : [...prev, inheritedCategory]);
+    }
+    if (inheritedSubCategory) {
+      setSubCategory(inheritedSubCategory);
+      setSelectedSubCategories(prev => prev.includes(inheritedSubCategory) ? prev : [...prev, inheritedSubCategory]);
+    }
+    if (inheritedPathId) {
+      setSelectedPathId(inheritedPathId);
+      setSelectedPathIds(prev => prev.includes(inheritedPathId) ? prev : [...prev, inheritedPathId]);
+    }
+    if (inheritedBatchId) {
+      setSelectedBatchId(inheritedBatchId);
+      setSelectedBatchIds(prev => prev.includes(inheritedBatchId) ? prev : [...prev, inheritedBatchId]);
+    }
+  }, [inheritedCategory, inheritedSubCategory, inheritedPathId, inheritedBatchId]);
 
   // Asset Upload Modal State
   const [activeAssetModalType, setActiveAssetModalType] = useState<'chapters' | 'images' | 'video' | 'promo' | null>(null);
@@ -119,12 +166,13 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
     setFee(course.fee ? course.fee.replace('$', '') : '');
     setSelectedPathId(course.pathId || '');
     setSelectedBatchId(course.batchId || '');
+    setSelectedBatchIds(course.batchId ? course.batchId.split(',').map(s => s.trim()) : []);
   };
 
   const handleReset = () => {
     setSelectedCourse(null);
-    setCategory('');
-    setSubCategory('');
+    setCategory(inheritedCategory || '');
+    setSubCategory(inheritedSubCategory || '');
     setTopTitle('');
     setCourseName('');
     setSubtitle('');
@@ -138,8 +186,9 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
     setDurationType('Weeks');
     setStaff('');
     setFee('');
-    setSelectedPathId('');
-    setSelectedBatchId('');
+    setSelectedPathId(inheritedPathId || '');
+    setSelectedBatchId(inheritedBatchId || '');
+    setSelectedBatchIds(inheritedBatchId ? [inheritedBatchId] : []);
   };
 
   const handleDelete = () => {
@@ -152,61 +201,195 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
     }
   };
 
-  const handleSave = () => {
-    if (!courseName.trim()) {
-      alert("Please provide at least a Course Title.");
-      return;
-    }
-    
+  // Helper method string
+  const getMethodsString = () => {
+    if (batchNotApplicable) return "Open-Schedule / IntelliCoach AI";
     const matchedPath = availablePaths.find(p => p.id === selectedPathId);
-    const matchedBatch = availableBatches.find(b => b.id === selectedBatchId);
+    return matchedPath?.methods || "Hybrid, AI Adaptive & Interactive Tutoring";
+  };
 
-    let methodString = "Custom Plan";
-    if (matchedPath && matchedBatch) {
-      methodString = `${matchedPath.name} (${matchedBatch.name}) [${matchedPath.methods}]`;
-    } else if (matchedPath) {
-      methodString = `${matchedPath.name} [${matchedPath.methods}]`;
-    } else if (matchedBatch) {
-      methodString = `Batch: ${matchedBatch.name}`;
+  // 1. SAVE RECORD: Saves active form draft record
+  const handleSaveRecord = () => {
+    if (!courseName.trim()) {
+      alert("Validation Error: Please enter at least a Course Title.");
+      return;
     }
 
     const currentCourseId = selectedCourse?.id || Math.random().toString(36).substr(2, 9);
+    const matchedPath = availablePaths.find(p => p.id === selectedPathId);
+    const matchedBatch = availableBatches.find(b => b.id === selectedBatchId);
+    const effectiveBatchId = batchNotApplicable ? undefined : (selectedBatchIds.length > 0 ? selectedBatchIds.join(', ') : (selectedBatchId || undefined));
+    const effectiveBatchName = batchNotApplicable ? 'Not Applicable (Open Schedule)' : (
+      selectedBatchIds.length > 0 
+        ? selectedBatchIds.map(id => availableBatches.find(b => b.id === id)?.name).filter(Boolean).join(', ')
+        : (matchedBatch?.name || undefined)
+    );
 
-    const newCourse: GlobalCourse = {
+    const activeCatForId = isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories[0] : (category.trim() || 'General');
+    const pathCodeOrName = matchedPath?.code || matchedPath?.name || selectedPathId || 'Path';
+    const batchCodeOrName = (isOpenSchedule || batchNotApplicable) ? 'Open' : (matchedBatch?.code || matchedBatch?.name || effectiveBatchName || 'Slot');
+    const dynamicCompositeId = selectedCourse?.compositeCourseId || generateCompositeCourseId(activeCatForId, pathCodeOrName, batchCodeOrName, courseName.trim());
+
+    const recordCourse: GlobalCourse = {
       id: currentCourseId,
-      category: category.trim() || undefined,
-      subCategory: subCategory.trim() || undefined,
+      compositeCourseId: dynamicCompositeId,
+      category: isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories.join(', ') : (category.trim() || undefined),
+      subCategory: isMultiSelectMode && selectedSubCategories.length > 0 ? selectedSubCategories.join(', ') : (subCategory.trim() || undefined),
       top_title: topTitle.trim() || undefined,
       name: courseName.trim(),
-      subtitle: subtitle.trim(),
+      subtitle: subtitle.trim() || 'Curriculum record draft',
       show_in_sub_nav: showInSubNav,
       displayPosition: displayPosition || 1,
       viewType: viewType || 'Main View',
-      staff: staff || 'Unassigned',
-      chapter: chapters || '0',
+      staff: staff || 'Faculty Assigned',
+      chapter: chapters || '1',
       duration: `${durationVal || '1'} ${durationType}`,
-      methods: methodString,
+      methods: getMethodsString(),
       pathId: selectedPathId || undefined,
       pathName: matchedPath?.name || undefined,
-      batchId: selectedBatchId || undefined,
-      batchName: matchedBatch?.name || undefined,
-      materials: `${materialItems.length} Verified Digital Resources`,
+      batchId: effectiveBatchId,
+      batchName: effectiveBatchName,
+      materials: `${materialItems.length} Draft Resources`,
       materialItems: materialItems,
       fee: `$${fee || '0'}`,
       students: selectedCourse?.students || '0',
-      courseStructure: courseStructure
+      courseStructure: courseStructure,
+      testApprovalStatus: 'Pending Review'
     };
 
-    if (selectedCourse) {
-      const updated = courseList.map(c => c.id === selectedCourse.id ? newCourse : c);
-      setGlobalCourses(updated);
-      alert("Course updated successfully with connected materials.");
-    } else {
-      const updated = [...courseList, newCourse];
-      setGlobalCourses(updated);
-      alert("Course created and saved successfully with connected materials.");
+    const exists = courseList.some(c => c.id === currentCourseId);
+    const updated = exists ? courseList.map(c => c.id === currentCourseId ? recordCourse : c) : [...courseList, recordCourse];
+    setCourseList(updated);
+    setGlobalCourses(updated);
+    window.dispatchEvent(new CustomEvent('ilas-courses-changed'));
+    setSaveFeedback({ message: `Course record draft "${recordCourse.name}" (${dynamicCompositeId}) saved successfully.`, type: 'info' });
+    setTimeout(() => setSaveFeedback(null), 4000);
+  };
+
+  // 2. SAVE COURSE: Generates course list shell (immediately visible in Course List table)
+  const handleSaveCourseShell = () => {
+    if (!courseName.trim()) {
+      alert("Validation Error: Please enter at least a Course Title.");
+      return;
     }
+
+    const currentCourseId = selectedCourse?.id || Math.random().toString(36).substr(2, 9);
+    const matchedPath = availablePaths.find(p => p.id === selectedPathId);
+    const matchedBatch = availableBatches.find(b => b.id === selectedBatchId);
+    const effectiveBatchId = batchNotApplicable ? undefined : (selectedBatchIds.length > 0 ? selectedBatchIds.join(', ') : (selectedBatchId || undefined));
+    const effectiveBatchName = batchNotApplicable ? 'Not Applicable (Open Schedule)' : (
+      selectedBatchIds.length > 0 
+        ? selectedBatchIds.map(id => availableBatches.find(b => b.id === id)?.name).filter(Boolean).join(', ')
+        : (matchedBatch?.name || undefined)
+    );
+
+    const activeCatForId = isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories[0] : (category.trim() || 'General');
+    const pathCodeOrName = matchedPath?.code || matchedPath?.name || selectedPathId || 'Path';
+    const batchCodeOrName = (isOpenSchedule || batchNotApplicable) ? 'Open' : (matchedBatch?.code || matchedBatch?.name || effectiveBatchName || 'Slot');
+    const dynamicCompositeId = selectedCourse?.compositeCourseId || generateCompositeCourseId(activeCatForId, pathCodeOrName, batchCodeOrName, courseName.trim());
+
+    const shellCourse: GlobalCourse = {
+      id: currentCourseId,
+      compositeCourseId: dynamicCompositeId,
+      category: isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories.join(', ') : (category.trim() || 'General Studies'),
+      subCategory: isMultiSelectMode && selectedSubCategories.length > 0 ? selectedSubCategories.join(', ') : (subCategory.trim() || 'Standard Track'),
+      top_title: topTitle.trim() || 'New Course Shell',
+      name: courseName.trim(),
+      subtitle: subtitle.trim() || 'Course catalog shell entry.',
+      show_in_sub_nav: showInSubNav,
+      displayPosition: displayPosition || 1,
+      viewType: viewType || 'Main View',
+      staff: staff || 'Staff TBD',
+      chapter: chapters || '4',
+      duration: `${durationVal || '4'} ${durationType}`,
+      methods: getMethodsString(),
+      pathId: selectedPathId || undefined,
+      pathName: matchedPath?.name || undefined,
+      batchId: effectiveBatchId,
+      batchName: effectiveBatchName,
+      materials: `${materialItems.length} Resources`,
+      materialItems: materialItems,
+      fee: `$${fee || '99'}`,
+      students: selectedCourse?.students || '0',
+      courseStructure: courseStructure || 'Module 1: Orientation\nModule 2: Core Concepts',
+      testApprovalStatus: 'Requires Refinement'
+    };
+
+    const exists = courseList.some(c => c.id === currentCourseId);
+    const updated = exists ? courseList.map(c => c.id === currentCourseId ? shellCourse : c) : [...courseList, shellCourse];
+    setCourseList(updated);
+    setGlobalCourses(updated);
+    window.dispatchEvent(new CustomEvent('ilas-courses-changed'));
+    setSaveFeedback({ message: `Course shell "${shellCourse.name}" (${dynamicCompositeId}) generated and added to Course List!`, type: 'success' });
+    setTimeout(() => setSaveFeedback(null), 4000);
+  };
+
+  // 3. CREATE COURSE / ADD TO LIBRARY: Pushes full content & structure directly to Library and Course List views
+  const handleCreateCourseAddToLibrary = () => {
+    if (!courseName.trim()) {
+      alert("Validation Error: Please enter at least a Course Title.");
+      return;
+    }
+
+    const currentCourseId = selectedCourse?.id || Math.random().toString(36).substr(2, 9);
+    const matchedPath = availablePaths.find(p => p.id === selectedPathId);
+    const matchedBatch = availableBatches.find(b => b.id === selectedBatchId);
+    const effectiveBatchId = isOpenSchedule ? undefined : (selectedBatchIds.length > 0 ? selectedBatchIds.join(', ') : (selectedBatchId || undefined));
+    const effectiveBatchName = isOpenSchedule ? 'Not Applicable (Open Schedule)' : (
+      selectedBatchIds.length > 0 
+        ? selectedBatchIds.map(id => availableBatches.find(b => b.id === id)?.name).filter(Boolean).join(', ')
+        : (matchedBatch?.name || undefined)
+    );
+
+    const isAI = courseName.toLowerCase().includes('ielts') || 
+                 courseName.toLowerCase().includes('german') || 
+                 courseName.toLowerCase().includes('coach') || 
+                 isOpenSchedule;
+
+    const activeCatForId = isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories[0] : (category.trim() || 'Education');
+    const pathCodeOrName = matchedPath?.code || matchedPath?.name || selectedPathId || 'Path';
+    const batchCodeOrName = (isOpenSchedule || batchNotApplicable) ? 'Open' : (matchedBatch?.code || matchedBatch?.name || effectiveBatchName || 'Slot');
+    const dynamicCompositeId = selectedCourse?.compositeCourseId || generateCompositeCourseId(activeCatForId, pathCodeOrName, batchCodeOrName, courseName.trim());
+
+    const fullCourse: GlobalCourse = {
+      id: currentCourseId,
+      compositeCourseId: dynamicCompositeId,
+      category: isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories.join(', ') : (category.trim() || 'Education & Languages'),
+      subCategory: isMultiSelectMode && selectedSubCategories.length > 0 ? selectedSubCategories.join(', ') : (subCategory.trim() || 'General Specialization'),
+      top_title: topTitle.trim() || 'Master Certification',
+      name: courseName.trim(),
+      subtitle: subtitle.trim() || 'Comprehensive interactive academic curriculum.',
+      show_in_sub_nav: showInSubNav,
+      displayPosition: displayPosition || 1,
+      viewType: viewType || 'Main View',
+      staff: staff || 'Senior Academic Lead',
+      chapter: chapters || '12',
+      duration: `${durationVal || '12'} ${durationType}`,
+      methods: getMethodsString(),
+      pathId: selectedPathId || undefined,
+      pathName: matchedPath?.name || undefined,
+      batchId: effectiveBatchId,
+      batchName: effectiveBatchName,
+      materials: `${materialItems.length} Verified Digital Resources`,
+      materialItems: materialItems,
+      fee: `$${fee || '199'}`,
+      students: selectedCourse?.students || '18',
+      courseStructure: courseStructure || 'Module 1: Foundations & Architecture\nModule 2: Applied Syntax & Drills\nModule 3: Enterprise Simulation\nModule 4: Final Certification Mock',
+      libraryType: isAI ? 'AI' : 'TUTOR',
+      aiLibrarySection: isAI ? 'Intelli Coach Classes' : undefined,
+      testApprovalStatus: 'Approved'
+    };
+
+    const exists = courseList.some(c => c.id === currentCourseId);
+    const updated = exists ? courseList.map(c => c.id === currentCourseId ? fullCourse : c) : [...courseList, fullCourse];
+    setCourseList(updated);
+    setGlobalCourses(updated);
+    window.dispatchEvent(new CustomEvent('ilas-courses-changed'));
+    alert(`🚀 Success! Course "${fullCourse.name}" (${dynamicCompositeId}) has been created and published directly into the Admin Library & Course List views with full curriculum structure!`);
     handleReset();
+    if (onNavigateTab) {
+      onNavigateTab('ADMIN LIBRARY');
+    }
   };
 
   // Asset Upload Handlers
@@ -367,130 +550,269 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
   const promoCount = materialItems.filter(m => m.type === 'promo').length;
 
   return (
-    <div className="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 bg-slate-50 font-sans min-h-screen">
+    <div className={`w-full flex flex-col gap-6 font-sans ${isWizardMode ? '' : 'flex-1 p-4 md:p-6 bg-slate-50 min-h-screen'}`}>
       
-      {/* Header Tracking Bar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-end gap-6 text-xs font-semibold text-slate-600 rounded-lg shadow-sm">
-        <span>LOGIN ID: <span className="text-brand-700 font-bold">ADM-001</span></span>
-        <span>NAME: <span className="text-brand-700 font-bold">ADMINISTRATOR</span></span>
-        <button className="text-brand-600 hover:underline flex items-center gap-1"><Clock className="w-3 h-3"/> ACTIVITY LOG</button>
-      </div>
+      {/* Header Tracking Bar (Only shown in standalone mode) */}
+      {!isWizardMode && (
+        <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-end gap-6 text-xs font-semibold text-slate-600 rounded-lg shadow-sm">
+          <span>LOGIN ID: <span className="text-brand-700 font-bold">ADM-001</span></span>
+          <span>NAME: <span className="text-brand-700 font-bold">ADMINISTRATOR</span></span>
+          <button className="text-brand-600 hover:underline flex items-center gap-1"><Clock className="w-3 h-3"/> ACTIVITY LOG</button>
+        </div>
+      )}
 
       <div className="w-full flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-brand-900">Create / Edit Course</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Configure course catalog, top title, sub-navigation visibility, and link Education Paths, Batch slots, & Study Materials.</p>
+        {!isWizardMode && (
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-brand-900">Create / Edit Course</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Configure course catalog, top title, sub-navigation visibility, and link Education Paths, Batch slots, &amp; Study Materials.</p>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* Create / View Form (Left Section) */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col gap-4">
             
-            {/* Dedicated Category & Sub-Category Section */}
-            <div className="bg-brand-50/70 border border-brand-200/90 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-2xs">
+            {/* Unified Master Academic Taxonomy & Schedule Selectors */}
+            <div className="bg-gradient-to-br from-brand-50/80 via-white to-indigo-50/40 border border-brand-200/90 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-2xs">
               {/* Section Header */}
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 border-b border-brand-100/80 pb-2.5">
                 <label className="text-xs font-black text-brand-900 flex items-center gap-2 uppercase tracking-wider">
                   <Layers className="w-4 h-4 text-brand-600 shrink-0" />
-                  <span>Category &amp; Sub-Category Classification</span>
+                  <span>Master Academic Taxonomy &amp; Schedule Selectors</span>
                 </label>
-                <span className="text-[10px] font-bold text-brand-700 bg-white px-2.5 py-0.5 rounded-full border border-brand-200 shadow-2xs shrink-0">
-                  Academic Taxonomy
-                </span>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-2xs cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isOpenSchedule}
+                      onChange={(e) => setIsOpenSchedule(e.target.checked)}
+                      className="rounded text-brand-600 focus:ring-brand-500 w-3 h-3 cursor-pointer"
+                    />
+                    <span>Open Schedule (No Batch)</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-brand-700 bg-white px-2.5 py-0.5 rounded-full border border-brand-200 shadow-2xs shrink-0">
+                    Unified Selectors
+                  </span>
+                </div>
               </div>
 
-              {/* Form Fields Stack */}
-              <div className="flex flex-col gap-3.5">
-                {/* 1. Primary Category (Dropdown + Create Category Button neatly side-by-side) */}
+              {/* 4 Master Selectors Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* 1. Primary Category */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1">
-                      <span>Primary Category</span>
+                      <span>Select Category</span>
                       <span className="text-rose-500">*</span>
                     </label>
-                    <span className="text-[10px] text-slate-500 font-medium">Select Master Domain</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1 min-w-0">
-                      <select
-                        value={category}
-                        onChange={(e) => {
-                          const newCat = e.target.value;
-                          setCategory(newCat);
-                          const found = availableCategories.find(c => c.name === newCat);
-                          if (found && found.subCategories && found.subCategories.length > 0) {
-                            setSubCategory(found.subCategories[0]);
-                          }
-                        }}
-                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all truncate"
-                      >
-                        <option value="">-- Select Primary Category --</option>
-                        {availableCategories.map(cat => (
-                          <option key={cat.id} value={cat.name}>{cat.name}</option>
-                        ))}
-                        <option value="Education & Languages">Education & Languages</option>
-                        <option value="Software & IT Training">Software & IT Training</option>
-                        <option value="Enterprise ERP & SAP">Enterprise ERP & SAP</option>
-                      </select>
-                    </div>
-
                     <button
                       type="button"
                       onClick={handleOpenCategoryManager}
-                      className="h-[38px] px-3 sm:px-3.5 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                      title="Navigate to Path & Batch to create or manage Categories & Sub-Categories"
+                      className="text-[10px] font-bold text-brand-600 hover:text-brand-800 flex items-center gap-0.5 cursor-pointer bg-white hover:bg-brand-50 px-1.5 py-0.5 rounded border border-brand-200 transition-colors"
+                      title="Create Category in Services & Batches"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Create Category</span>
+                      <Plus className="w-3 h-3" />
+                      <span>New Category</span>
                     </button>
                   </div>
+                  <select
+                    value={category}
+                    onChange={(e) => {
+                      const newCat = e.target.value;
+                      setCategory(newCat);
+                      const found = availableCategories.find(c => c.name === newCat);
+                      if (found && found.subCategories && found.subCategories.length > 0) {
+                        setSubCategory(found.subCategories[0]);
+                      }
+                    }}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all truncate"
+                  >
+                    <option value="">-- Select Category --</option>
+                    {availableCategories.map(cat => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
+                    <option value="Education & Languages">Education & Languages</option>
+                    <option value="Software & IT Training">Software & IT Training</option>
+                    <option value="Enterprise ERP & SAP">Enterprise ERP & SAP</option>
+                  </select>
                 </div>
 
-                {/* 2. Sub-Category Input / Dropdown (Properly aligned with appropriate spacing below) */}
+                {/* 2. Sub-Category (Track) */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                      Sub-Category / Specialization
+                      Select Sub-Category (Track)
                     </label>
                     {category && (
-                      <span className="text-[10px] text-brand-700 bg-brand-100/60 font-semibold px-2 py-0.5 rounded">
-                        Linked to {category}
+                      <span className="text-[10px] text-brand-700 bg-brand-100/60 font-semibold px-1.5 py-0.2 rounded truncate max-w-[120px]">
+                        {category}
                       </span>
                     )}
                   </div>
+                  {availableCategories.find(c => c.name === category)?.subCategories && (availableCategories.find(c => c.name === category)?.subCategories.length || 0) > 0 ? (
+                    <select
+                      value={subCategory}
+                      onChange={(e) => setSubCategory(e.target.value)}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all truncate"
+                    >
+                      <option value="">-- Select Sub-Category (Track) --</option>
+                      {availableCategories.find(c => c.name === category)?.subCategories.map(sub => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                      <option value="General Specialization">General Specialization</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={subCategory}
+                      onChange={(e) => setSubCategory(e.target.value)}
+                      placeholder="e.g. German A1-C2 / SAP S/4HANA"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs transition-all"
+                    />
+                  )}
+                </div>
 
-                  <div className="w-full">
-                    {availableCategories.find(c => c.name === category)?.subCategories && (availableCategories.find(c => c.name === category)?.subCategories.length || 0) > 0 ? (
-                      <select
-                        value={subCategory}
-                        onChange={(e) => setSubCategory(e.target.value)}
-                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all"
+                {/* 3. Education Path */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1">
+                      <span>Select Path</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleOpenPathModal}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer bg-white hover:bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 transition-colors"
+                      title="Quick Add Education Path"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Path</span>
+                    </button>
+                  </div>
+                  <select 
+                    value={selectedPathId} 
+                    onChange={(e) => {
+                      if (e.target.value === '__CREATE_NEW_PATH__') {
+                        handleOpenPathModal();
+                      } else {
+                        setSelectedPathId(e.target.value);
+                      }
+                    }} 
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all truncate"
+                  >
+                    <option value="">-- Select Education Path --</option>
+                    {availablePaths.map(path => (
+                      <option key={path.id} value={path.id}>
+                        {path.name} [{path.methods}]
+                      </option>
+                    ))}
+                    <option value="__CREATE_NEW_PATH__" className="font-bold text-indigo-700 bg-indigo-50">
+                      ➕ + Create New Path...
+                    </option>
+                  </select>
+                </div>
+
+                {/* 4. Batch & Slot (Multi-Select via Ctrl+Click) */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1">
+                      <span>Select Batch &amp; Slot</span>
+                      <span className="text-[10px] text-slate-400 font-normal lowercase">(Ctrl+Click multi)</span>
+                    </label>
+                    {!isOpenSchedule && (
+                      <button
+                        type="button"
+                        onClick={handleOpenBatchModal}
+                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-0.5 cursor-pointer bg-white hover:bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors"
+                        title="Quick Add Batch Slot"
                       >
-                        <option value="">-- Select Sub-Category --</option>
-                        {availableCategories.find(c => c.name === category)?.subCategories.map(sub => (
-                          <option key={sub} value={sub}>{sub}</option>
-                        ))}
-                        <option value="General Specialization">General Specialization</option>
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={subCategory}
-                        onChange={(e) => setSubCategory(e.target.value)}
-                        placeholder="e.g. German Language (A1–C2) / SAP S/4HANA Finance"
-                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs transition-all"
-                      />
+                        <Plus className="w-3 h-3" />
+                        <span>New Batch</span>
+                      </button>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-500">
-                    Categorize the course under its academic taxonomy for frontend navigation filtering and catalog categorization.
-                  </p>
+                  {isOpenSchedule ? (
+                    <div className="p-2 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-1.5 min-h-[38px]">
+                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="truncate">Open Schedule / IntelliCoach Active</span>
+                    </div>
+                  ) : (
+                    <select
+                      multiple
+                      size={2}
+                      value={selectedBatchIds.length > 0 ? selectedBatchIds : (selectedBatchId ? [selectedBatchId] : [])}
+                      onChange={(e) => {
+                        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                        if (selectedOptions.includes('__CREATE_NEW_BATCH__')) {
+                          handleOpenBatchModal();
+                          return;
+                        }
+                        setSelectedBatchIds(selectedOptions);
+                        setSelectedBatchId(selectedOptions[0] || '');
+                      }}
+                      className="w-full border border-slate-300 rounded-xl px-2.5 py-1 text-xs bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all"
+                    >
+                      {availableBatches.length === 0 ? (
+                        <option disabled value="">No Batches Created Yet</option>
+                      ) : (
+                        availableBatches
+                          .filter(batch => !selectedPathId || batch.linkedPathId === selectedPathId || !batch.linkedPathId)
+                          .map(batch => (
+                            <option key={batch.id} value={batch.id} className="py-0.5">
+                              {batch.name} {batch.timings.length > 0 ? `(${batch.timings[0]})` : ''}
+                            </option>
+                          ))
+                      )}
+                      <option value="__CREATE_NEW_BATCH__" className="font-bold text-emerald-700 bg-emerald-50 py-0.5">
+                        ➕ + Create New Batch...
+                      </option>
+                    </select>
+                  )}
                 </div>
               </div>
+
+              {/* Selected Batches Badges (if any selected) */}
+              {!isOpenSchedule && selectedBatchIds.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-brand-100/60">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Selected Batches:</span>
+                  {selectedBatchIds.map(batchId => {
+                    const batch = availableBatches.find(b => b.id === batchId);
+                    return (
+                      <span
+                        key={batchId}
+                        className="inline-flex items-center gap-1 bg-white border border-emerald-300 text-emerald-800 text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-2xs"
+                      >
+                        <span>{batch ? batch.name : batchId}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = selectedBatchIds.filter(id => id !== batchId);
+                            setSelectedBatchIds(updated);
+                            setSelectedBatchId(updated[0] || '');
+                          }}
+                          className="text-slate-400 hover:text-rose-600 text-xs leading-none font-bold cursor-pointer"
+                          title="Remove batch"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBatchIds([]);
+                      setSelectedBatchId('');
+                    }}
+                    className="text-[9px] text-slate-400 hover:text-rose-500 underline ml-1 cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Top Title Field */}
@@ -507,6 +829,22 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
                 placeholder="e.g. German Language & Proficiency / English Language Mastery" 
               />
               <span className="text-[10px] text-slate-500">Displayed prominently at the top badge of the Course Page.</span>
+            </div>
+
+            {/* Dynamic Composite Course ID Preview */}
+            <div className="bg-slate-900 text-white rounded-xl p-2.5 border border-slate-700 flex items-center justify-between gap-2 shadow-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">Composite Course ID:</span>
+                <span className="font-mono text-xs font-black text-amber-300 bg-black/40 px-2.5 py-0.5 rounded border border-amber-500/30 tracking-wide">
+                  {selectedCourse?.compositeCourseId || generateCompositeCourseId(
+                    isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories[0] : (category || 'CAT'),
+                    availablePaths.find(p => p.id === selectedPathId)?.code || availablePaths.find(p => p.id === selectedPathId)?.name || 'PTH',
+                    (isOpenSchedule || batchNotApplicable) ? 'OPEN' : (availableBatches.find(b => b.id === selectedBatchId)?.code || availableBatches.find(b => b.id === selectedBatchId)?.name || 'BAT'),
+                    courseName || 'CRS'
+                  )}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-semibold hidden sm:inline">Auto-Derived: Category + Path + Batch + Name</span>
             </div>
 
             {/* Course Title */}
@@ -687,14 +1025,14 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
               </button>
             </div>
 
-            {/* PATH and BATCH fields on the same line with + Add Buttons */}
+            {/* EDUCATION PATH & BATCH CONFIGURATION */}
             <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-brand-900 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-brand-600" />
-                  EDUCATION PATH & BATCH CONFIGURATION
+                  EDUCATION PATH &amp; BATCH CONFIGURATION
                 </label>
-                <span className="text-[10px] text-slate-400">Linked to Services & Batches</span>
+                <span className="text-[10px] text-slate-400">Linked to Services &amp; Batches</span>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -708,7 +1046,7 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
                       className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 transition-colors"
                     >
                       <Plus className="w-3 h-3" />
-                      {/* <span>Add Path</span> */}
+                      <span>Add Path</span>
                     </button>
                   </div>
                   <div className="flex gap-1.5">
@@ -719,7 +1057,7 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
                           handleOpenPathModal();
                         } else {
                           setSelectedPathId(e.target.value);
-                          setSelectedBatchId(''); // Reset batch when path changes
+                          setSelectedBatchId('');
                         }
                       }} 
                       className="w-full border border-brand-300 rounded p-2 text-xs bg-brand-50/60 focus:ring-1 focus:ring-brand-500 font-medium cursor-pointer"
@@ -737,48 +1075,60 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
                   </div>
                 </div>
 
-                {/* Batch Dropdown + Add Button */}
+                {/* Batch Dropdown + Add Button or Not Applicable Badge */}
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-slate-600">Batch</label>
-                    <button
-                      type="button"
-                      onClick={handleOpenBatchModal}
-                      className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-0.5 cursor-pointer bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
-                    >
-                      <Plus className="w-3 h-3" />
-                      {/* <span>Add Batch</span> */}
-                    </button>
+                    <label className="text-[11px] font-semibold text-slate-600">Batch Slot</label>
+                    {!isOpenSchedule && (
+                      <button
+                        type="button"
+                        onClick={handleOpenBatchModal}
+                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-0.5 cursor-pointer bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Batch</span>
+                      </button>
+                    )}
                   </div>
-                  <div className="flex gap-1.5">
-                    <select 
-                      value={selectedBatchId} 
-                      onChange={(e) => {
-                        if (e.target.value === '__CREATE_NEW_BATCH__') {
-                          handleOpenBatchModal();
-                        } else {
-                          setSelectedBatchId(e.target.value);
-                        }
-                      }}
-                      disabled={!selectedPathId}
-                      className="w-full border border-brand-300 rounded p-2 text-xs bg-brand-50/60 focus:ring-1 focus:ring-brand-500 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">{selectedPathId ? '-- Select Batch --' : '-- Select Path First --'}</option>
-                      {availableBatches
-                        .filter(batch => batch.linkedPathId === selectedPathId)
-                        .map(batch => (
-                        <option key={batch.id} value={batch.id}>
-                          {batch.name} {batch.timings.length > 0 ? `(${batch.timings[0]})` : ''}
+                  {isOpenSchedule ? (
+                    <div className="p-2 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-1.5 h-[38px]">
+                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="truncate">Not Applicable (Open-Schedule / IntelliCoach)</span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <select 
+                        value={selectedBatchId} 
+                        onChange={(e) => {
+                          if (e.target.value === '__CREATE_NEW_BATCH__') {
+                            handleOpenBatchModal();
+                          } else {
+                            setSelectedBatchId(e.target.value);
+                            if (e.target.value && !selectedBatchIds.includes(e.target.value)) {
+                              setSelectedBatchIds([e.target.value]);
+                            }
+                          }
+                        }}
+                        disabled={!selectedPathId}
+                        className="w-full border border-brand-300 rounded p-2 text-xs bg-brand-50/60 focus:ring-1 focus:ring-brand-500 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">{selectedPathId ? '-- Select Batch --' : '-- Select Path First --'}</option>
+                        {availableBatches
+                          .filter(batch => !selectedPathId || batch.linkedPathId === selectedPathId || !batch.linkedPathId)
+                          .map(batch => (
+                          <option key={batch.id} value={batch.id}>
+                            {batch.name} {batch.timings.length > 0 ? `(${batch.timings[0]})` : ''}
+                          </option>
+                        ))}
+                        <option value="__CREATE_NEW_BATCH__" className="font-bold text-emerald-700 bg-emerald-50">
+                          ➕ + Create New Batch...
                         </option>
-                      ))}
-                      <option value="__CREATE_NEW_BATCH__" className="font-bold text-emerald-700 bg-emerald-50">
-                        ➕ + Create New Batch...
-                      </option>
-                    </select>
-                  </div>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 italic">*Linked Path & Batch configurations will display dynamically on the Course page.</p>
+              <p className="text-[10px] text-slate-500 italic">*Linked Path &amp; Batch configurations will display dynamically on the Course page.</p>
             </div>
 
             {/* Dynamic Course Structure & Details */}
@@ -913,21 +1263,69 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
             </div>
             
             {/* Action Buttons & Integrations */}
-            <div className="grid grid-cols-2 gap-3 mt-auto">
-              <button className="col-span-2 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-sm flex items-center justify-center gap-2 transition-transform hover:scale-[1.01]">
-                <BookOpen className="w-5 h-5"/> ADD TO LIBRARY <span className="text-xs font-normal opacity-80">(Push to Class Room)</span>
+            <div className="flex flex-col gap-3 mt-auto pt-4 border-t border-slate-100">
+              {saveFeedback && (
+                <div className={`p-2.5 rounded-xl text-xs font-bold flex items-center justify-between animate-in fade-in ${
+                  saveFeedback.type === 'success' 
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                    : 'bg-indigo-50 text-indigo-800 border border-indigo-200'
+                }`}>
+                  <span>{saveFeedback.message}</span>
+                  <button type="button" onClick={() => setSaveFeedback(null)} className="text-slate-400 hover:text-slate-700 font-bold ml-2">×</button>
+                </div>
+              )}
+
+              {/* Primary Library Sync Button */}
+              <button 
+                type="button"
+                onClick={handleCreateCourseAddToLibrary}
+                className="w-full py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Create &amp; Sync to Library</span>
+                <span className="text-[11px] font-normal opacity-90 hidden sm:inline">(Full Curriculum &amp; Batch Sync)</span>
               </button>
-              <button className="py-2 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 flex items-center justify-center gap-1">
-                <CheckSquare className="w-4 h-4"/> SEND FOR APPROVAL
-              </button>
-              <button className="py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 flex items-center justify-center gap-1">
-                <Send className="w-4 h-4"/> SEND TO UPDATE
-              </button>
-              <div className="col-span-2 flex gap-2 justify-center mt-2">
-                <button onClick={handleReset} className="flex-1 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded hover:bg-slate-200 flex items-center justify-center gap-1 cursor-pointer"><Edit className="w-3 h-3"/> RESET</button>
-                <button onClick={handleDelete} disabled={!selectedCourse} className="flex-1 py-2 bg-red-50 text-red-600 text-xs font-bold rounded hover:bg-red-100 border border-red-200 flex items-center justify-center gap-1 disabled:opacity-50 cursor-pointer"><Trash2 className="w-3 h-3"/> DELETE</button>
-                <button onClick={handleSave} className="flex-1 py-2 bg-brand-50 text-brand-700 text-xs font-bold rounded hover:bg-brand-100 border border-brand-200 flex items-center justify-center gap-1 cursor-pointer"><RefreshCw className="w-3 h-3"/> UPDATE</button>
-                <button onClick={handleSave} className="flex-1 py-2 bg-brand-600 text-white text-xs font-bold rounded hover:bg-brand-700 shadow flex items-center justify-center gap-1 cursor-pointer"><Save className="w-3 h-3"/> SAVE</button>
+
+              {/* Secondary Actions: Save Record & Save Course (Shell) */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <button 
+                  type="button"
+                  onClick={handleSaveRecord}
+                  className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Save course draft in record registry"
+                >
+                  <Save className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Save Record</span>
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={handleSaveCourseShell}
+                  className="py-2.5 px-3 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Generate course shell into the Course List inventory"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Save Course (Shell)</span>
+                </button>
+              </div>
+
+              {/* Reset and Delete Controls */}
+              <div className="flex gap-2 justify-end pt-1">
+                <button 
+                  type="button"
+                  onClick={handleReset} 
+                  className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:text-slate-900 text-[11px] font-bold rounded-lg hover:bg-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Edit className="w-3 h-3"/> Reset Form
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleDelete} 
+                  disabled={!selectedCourse} 
+                  className="px-3 py-1.5 bg-red-50 text-red-600 text-[11px] font-bold rounded-lg hover:bg-red-100 border border-red-200 flex items-center gap-1 disabled:opacity-40 cursor-pointer transition-colors"
+                >
+                  <Trash2 className="w-3 h-3"/> Delete Course
+                </button>
               </div>
             </div>
 
@@ -947,6 +1345,7 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
               <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 rounded-tl-lg">Category & Sub-Category</th>
+                  <th className="px-4 py-3">Course ID (Composite)</th>
                   <th className="px-4 py-3">Top Title / Badge</th>
                   <th className="px-4 py-3">Course Name</th>
                   <th className="px-4 py-3">Sub-Nav</th>
@@ -977,6 +1376,11 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
                       ) : (
                         <span className="text-slate-400 italic">Unassigned</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className="font-mono font-bold text-[11px] bg-slate-900 text-amber-300 px-2 py-0.5 rounded-md border border-slate-700 shadow-2xs inline-block">
+                        {item.compositeCourseId || item.id}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-xs font-medium text-slate-500">{item.top_title || '-'}</td>
                     <td className="px-4 py-3 font-semibold text-brand-700">{item.name}</td>
