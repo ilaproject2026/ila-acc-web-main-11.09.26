@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Save, Edit, Trash2, BookOpen, Layers, Clock, CheckCircle, 
-  FolderPlus, Tag, Plus, X, List, Shield, HelpCircle, Check, 
+  FolderPlus, Tag, Plus, PlusCircle, X, List, Shield, HelpCircle, Check, 
   ArrowRight, Sparkles, RefreshCw, Hash, Code
 } from 'lucide-react';
 import { 
@@ -10,11 +10,23 @@ import {
   generateUniqueCode,
   GlobalPath, GlobalBatch, GlobalCourse 
 } from '../../lib/db';
+import CourseCreator from './CourseCreator';
 
-type TabType = 'CATEGORY' | 'SERVICE' | 'BATCH';
+type TabType = 'CATEGORY' | 'SERVICE' | 'BATCH' | 'COURSE_CREATOR';
 
-const ServicesAndBatches: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('CATEGORY');
+interface ServicesAndBatchesProps {
+  initialTab?: TabType;
+  onNavigateTab?: (tabName: string, subTab?: string) => void;
+}
+
+const ServicesAndBatches: React.FC<ServicesAndBatchesProps> = ({ initialTab = 'CATEGORY', onNavigateTab }) => {
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   // Lists State
   const [categoryList, setCategoryList] = useState<GlobalCategory[]>([]);
@@ -76,6 +88,8 @@ const ServicesAndBatches: React.FC = () => {
     const handleCustomNav = (e: any) => {
       if (e.detail?.subTab) {
         setActiveTab(e.detail.subTab as TabType);
+      } else if (e.detail?.tab === 'COURSE CREATE' || e.detail?.tab === 'COURSE CREATOR') {
+        setActiveTab('COURSE_CREATOR');
       }
       if (e.detail?.courseId || e.detail?.courseName) {
         const dbCourses = getGlobalCourses();
@@ -130,7 +144,7 @@ const ServicesAndBatches: React.FC = () => {
       setNewSubCategoryTag('');
     } else if (activeTab === 'SERVICE') {
       setSelectedService(null);
-    } else {
+    } else if (activeTab === 'BATCH') {
       setSelectedBatch(null);
       setNewTimeSlot('');
     }
@@ -376,7 +390,7 @@ const ServicesAndBatches: React.FC = () => {
         {/* Tab 3: Batch Slots */}
         <button
           onClick={() => { setActiveTab('BATCH'); handleReset(); }}
-          className={`px-4 py-2.5 font-black text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 font-black text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer shrink-0 ${
             activeTab === 'BATCH'
               ? 'bg-white text-brand-900 border-brand-600 shadow-xs'
               : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-white/50'
@@ -388,8 +402,39 @@ const ServicesAndBatches: React.FC = () => {
             {batchList.length}
           </span>
         </button>
+
+        {/* Tab 4: Course Creator */}
+        <button
+          onClick={() => { setActiveTab('COURSE_CREATOR'); handleReset(); }}
+          className={`px-4 py-2.5 font-black text-xs uppercase tracking-wider rounded-t-xl transition-all border-b-2 flex items-center gap-2 cursor-pointer shrink-0 ${
+            activeTab === 'COURSE_CREATOR'
+              ? 'bg-white text-brand-900 border-brand-600 shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 border-transparent hover:bg-white/50'
+          }`}
+        >
+          <PlusCircle className="w-4 h-4 text-brand-600" />
+          <span>Course Creator</span>
+          <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.2 rounded-full font-mono font-bold">
+            {courseList.length}
+          </span>
+        </button>
       </div>
 
+      {activeTab === 'COURSE_CREATOR' ? (
+        <CourseCreator
+          isEmbedded={true}
+          onNavigateTab={(tabName, subTab) => {
+            if (tabName === 'SERVICES & BATCHES' || !tabName) {
+              if (subTab) {
+                setActiveTab(subTab as TabType);
+              }
+            } else if (onNavigateTab) {
+              onNavigateTab(tabName, subTab);
+            }
+          }}
+        />
+      ) : (
+        <>
       {/* Form & Configuration Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 space-y-5">
         
@@ -1112,6 +1157,8 @@ const ServicesAndBatches: React.FC = () => {
           </table>
         </div>
       </div>
+      </>
+      )}
 
     </div>
   );

@@ -18,6 +18,7 @@ import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
 
 const EducationHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('HOD DB');
+  const [servicesSubTab, setServicesSubTab] = useState<'CATEGORY' | 'SERVICE' | 'BATCH' | 'COURSE_CREATOR'>('CATEGORY');
   const [isWrapMode, setIsWrapMode] = useState<boolean>(false);
   const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
   const [canScrollRight, setCanScrollRight] = useState<boolean>(true);
@@ -27,7 +28,6 @@ const EducationHub: React.FC = () => {
   const navigationItems = [
     { id: 'HOD DB', label: 'HOD DB', icon: Database },
     { id: 'SERVICES & BATCHES', label: 'Path & Batch', icon: Calendar },
-    { id: 'COURSE CREATE', label: 'Course Creator', icon: PlusCircle },
     { id: 'LIBRARY & CLASS ROOM', label: 'Library & Classroom', icon: BookOpen },
 
     // { id: 'HOD WORK & STUDY', label: 'HOD Work & Study', icon: Briefcase },
@@ -116,12 +116,45 @@ const EducationHub: React.FC = () => {
         return <AdminTimeTableHub />;
       */
       case 'LIBRARY & CLASS ROOM':
-        return <LibraryAndClassRoom onNavigateTab={(tab) => setActiveTab(tab)} />;
+        return (
+          <LibraryAndClassRoom
+            onNavigateTab={(tab) => {
+              if (tab === 'COURSE CREATE' || tab === 'COURSE CREATOR') {
+                setServicesSubTab('COURSE_CREATOR');
+                setActiveTab('SERVICES & BATCHES');
+              } else {
+                setActiveTab(tab);
+              }
+            }}
+          />
+        );
       case 'SERVICES & BATCHES':
-        return <ServicesAndBatches />;
+        return (
+          <ServicesAndBatches
+            initialTab={servicesSubTab}
+            onNavigateTab={(tab, subTab) => {
+              if (tab === 'SERVICES & BATCHES') {
+                if (subTab) setServicesSubTab(subTab as any);
+              } else {
+                setActiveTab(tab);
+              }
+            }}
+          />
+        );
       case 'COURSE CREATE':
       case 'COURSE CREATOR':
-        return <CourseCreator onNavigateTab={(tab) => setActiveTab(tab)} />;
+        return (
+          <ServicesAndBatches
+            initialTab="COURSE_CREATOR"
+            onNavigateTab={(tab, subTab) => {
+              if (tab === 'SERVICES & BATCHES') {
+                if (subTab) setServicesSubTab(subTab as any);
+              } else {
+                setActiveTab(tab);
+              }
+            }}
+          />
+        );
       /* Hidden per request:
       case 'AI COURSE CREATOR':
         return <AICourseCreator onNavigateTab={(tab) => setActiveTab(tab)} />;
@@ -141,7 +174,7 @@ const EducationHub: React.FC = () => {
                 <button onClick={() => setActiveTab('LIBRARY & CLASS ROOM')} className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
                   <BookOpen className="w-4 h-4" /> Open Classroom
                 </button>
-                <button onClick={() => setActiveTab('COURSE CREATE')} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                <button onClick={() => { setServicesSubTab('COURSE_CREATOR'); setActiveTab('SERVICES & BATCHES'); }} className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
                   <PlusCircle className="w-4 h-4" /> Create Course
                 </button>
               </div>
@@ -191,7 +224,7 @@ const EducationHub: React.FC = () => {
                         <td className="p-2.5 font-bold text-slate-900">{c.fee}</td>
                         <td className="p-2.5 text-right">
                           <button onClick={() => setActiveTab('LIBRARY & CLASS ROOM')} className="text-brand-600 hover:text-brand-700 font-bold mr-3 cursor-pointer">Classroom →</button>
-                          <button onClick={() => setActiveTab('COURSE CREATE')} className="text-slate-600 hover:text-slate-900 font-bold cursor-pointer">Edit</button>
+                          <button onClick={() => { setServicesSubTab('COURSE_CREATOR'); setActiveTab('SERVICES & BATCHES'); }} className="text-slate-600 hover:text-slate-900 font-bold cursor-pointer">Edit</button>
                         </td>
                       </tr>
                     ))}
@@ -331,7 +364,7 @@ const EducationHub: React.FC = () => {
           >
             {navigationItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id || (item.id === 'COURSE CREATE' && activeTab === 'COURSE CREATOR');
+              const isActive = activeTab === item.id;
               const tabDomId = `nav-tab-${item.id.replace(/\s+/g, '-')}`;
 
               return (

@@ -22,9 +22,10 @@ const DEFAULT_MATERIALS: CourseMaterialItem[] = [
 
 interface CourseCreatorProps {
   onNavigateTab?: (tabName: string, subTab?: string) => void;
+  isEmbedded?: boolean;
 }
 
-const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
+const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab, isEmbedded = false }) => {
   const [courseList, setCourseList] = useState<GlobalCourse[]>([]);
   const [availablePaths, setAvailablePaths] = useState<GlobalPath[]>([]);
   const [availableBatches, setAvailableBatches] = useState<GlobalBatch[]>([]);
@@ -367,14 +368,16 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({ onNavigateTab }) => {
   const promoCount = materialItems.filter(m => m.type === 'promo').length;
 
   return (
-    <div className="flex-1 p-4 md:p-6 w-full flex flex-col gap-6 bg-slate-50 font-sans min-h-screen">
+    <div className={isEmbedded ? "w-full flex flex-col gap-6" : "flex-1 p-4 md:p-6 w-full flex flex-col gap-6 bg-slate-50 font-sans min-h-screen"}>
       
       {/* Header Tracking Bar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-end gap-6 text-xs font-semibold text-slate-600 rounded-lg shadow-sm">
-        <span>LOGIN ID: <span className="text-brand-700 font-bold">ADM-001</span></span>
-        <span>NAME: <span className="text-brand-700 font-bold">ADMINISTRATOR</span></span>
-        <button className="text-brand-600 hover:underline flex items-center gap-1"><Clock className="w-3 h-3"/> ACTIVITY LOG</button>
-      </div>
+      {!isEmbedded && (
+        <div className="bg-white border-b border-slate-200 px-4 py-2 flex justify-end gap-6 text-xs font-semibold text-slate-600 rounded-lg shadow-sm">
+          <span>LOGIN ID: <span className="text-brand-700 font-bold">ADM-001</span></span>
+          <span>NAME: <span className="text-brand-700 font-bold">ADMINISTRATOR</span></span>
+          <button className="text-brand-600 hover:underline flex items-center gap-1"><Clock className="w-3 h-3"/> ACTIVITY LOG</button>
+        </div>
+      )}
 
       <div className="w-full flex flex-col gap-6">
         <div className="flex items-center justify-between">
