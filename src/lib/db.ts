@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../supabaseClient';
+import { APP_BASE_URL, sanitizeAppUrl } from './config';
 
 export interface FollowUpRecord {
   id: string;
@@ -549,7 +550,7 @@ const SEED_INQUIRIES: Inquiry[] = [
     amountPaid: '$199.00',
     totalAmount: '$199.00',
     paymentStatus: 'Paid',
-    classLink: 'http://localhost:5175/#classroom?join=de-a1-sharma',
+    classLink: `${APP_BASE_URL}/#classroom?join=de-a1-sharma`,
     category: 'Education',
     department: 'Education',
     source: 'Front-Desk Reception',
@@ -1286,13 +1287,19 @@ export const getInquiries = (): Inquiry[] => {
     let hasMigrated = false;
     const migrated = list.map(item => {
       let updatedItem = item;
-      if (item.classLink && item.classLink.includes('ilas.global')) {
-        updatedItem = { ...updatedItem, classLink: item.classLink.replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175') };
-        hasMigrated = true;
+      if (item.classLink) {
+        const sanitized = sanitizeAppUrl(item.classLink);
+        if (sanitized !== item.classLink) {
+          updatedItem = { ...updatedItem, classLink: sanitized };
+          hasMigrated = true;
+        }
       }
-      if (item.videoLink && item.videoLink.includes('ilas.global')) {
-        updatedItem = { ...updatedItem, videoLink: item.videoLink.replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175') };
-        hasMigrated = true;
+      if (item.videoLink) {
+        const sanitized = sanitizeAppUrl(item.videoLink);
+        if (sanitized !== item.videoLink) {
+          updatedItem = { ...updatedItem, videoLink: sanitized };
+          hasMigrated = true;
+        }
       }
       return updatedItem;
     });
@@ -1634,7 +1641,7 @@ export const approveStudentPaymentAndUnlock = (id: string, classLink: string): I
       return { 
         ...item, 
         paymentStatus: 'Paid' as const, 
-        classLink: classLink || 'http://localhost:5175/#classroom?join=default-session' 
+        classLink: classLink || `${APP_BASE_URL}/#classroom?join=default-session` 
       };
     }
     return item;
@@ -1650,8 +1657,8 @@ export const processAutomatedPayment = (inquiryId: string, transactionId: string
     if (item.id === inquiryId) {
       return { 
         ...item, 
-        paymentStatus: 'Paid' as const,
-        classLink: `http://localhost:5175/#classroom?join=session-${transactionId}` 
+        paymentStatus: 'Paid' as const, 
+        classLink: `${APP_BASE_URL}/#classroom?join=session-${transactionId}` 
       };
     }
     return item;
@@ -1864,7 +1871,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Welcome & Onboarding',
     channel: 'WhatsApp',
     subject: 'Willkommen to ILAS! Your Student Portal is Ready 🚀',
-    messageTemplate: 'Hallo {{name}}, Herzlich Willkommen to ILAS! Your student account for {{course}} is active. Access your IntelliCoach AI, live schedules, and learning materials here: http://localhost:5175/#student-portal. Your assigned counselor is on standby.',
+    messageTemplate: `Hallo {{name}}, Herzlich Willkommen to ILAS! Your student account for {{course}} is active. Access your IntelliCoach AI, live schedules, and learning materials here: ${APP_BASE_URL}/#student-portal. Your assigned counselor is on standby.`,
     isActive: true,
     delayMinutes: 0,
     badge: 'Instant Zero-Latency',
@@ -1921,7 +1928,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Class & Schedule Alerts',
     channel: 'SMS',
     subject: 'ILAS Classroom Live in 60 Mins: 1-Click Link Inside',
-    messageTemplate: '⏰ {{name}}, your live batch for {{course}} begins in 60 minutes! Click to join your interactive room: http://localhost:5175/#classroom?batch={{batch_id}}. See you in class!',
+    messageTemplate: `⏰ {{name}}, your live batch for {{course}} begins in 60 minutes! Click to join your interactive room: ${APP_BASE_URL}/#classroom?batch={{batch_id}}. See you in class!`,
     isActive: true,
     delayMinutes: 60,
     badge: '60-Min Direct Ping',
@@ -1940,7 +1947,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Enrollment Follow-ups',
     channel: 'WhatsApp',
     subject: 'Complete Your {{course}} Enrollment & Secure Your Seat',
-    messageTemplate: 'Hi {{name}}, we noticed you started your intake for {{course}} yesterday. Only 4 seats remain in this upcoming batch! Need quick guidance? Reply 1 to chat with Senior Counselor Priya or click http://localhost:5175/#admissions.',
+    messageTemplate: `Hi {{name}}, we noticed you started your intake for {{course}} yesterday. Only 4 seats remain in this upcoming batch! Need quick guidance? Reply 1 to chat with Senior Counselor Priya or click ${APP_BASE_URL}/#admissions.`,
     isActive: true,
     delayMinutes: 1440,
     badge: '24h Conversion Nudge',
@@ -1978,7 +1985,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Payment & Retention',
     channel: 'Multi-Channel',
     subject: 'Invoice & Installment Due Reminder for {{course}}',
-    messageTemplate: 'Hallo {{name}}, your installment of {{amount}} for {{course}} is due in 3 days. Pay conveniently via Card, UPI, or SEPA to maintain uninterrupted access to IntelliCoach AI & live classes: http://localhost:5175/#student-portal?invoice={{id}}.',
+    messageTemplate: `Hallo {{name}}, your installment of {{amount}} for {{course}} is due in 3 days. Pay conveniently via Card, UPI, or SEPA to maintain uninterrupted access to IntelliCoach AI & live classes: ${APP_BASE_URL}/#student-portal?invoice={{id}}.`,
     isActive: true,
     delayMinutes: 4320,
     badge: 'Due-Date Automator',

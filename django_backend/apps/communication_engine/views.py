@@ -50,7 +50,7 @@ class CommunicationWorkflowRuleViewSet(viewsets.ModelViewSet):
             .replace('{{course}}', course)
             .replace('{{time}}', '09:00 AM CET')
             .replace('{{tutor}}', 'Frau Lisa Weber')
-            .replace('{{portal_link}}', 'http://localhost:5175/#student-portal')
+            .replace('{{portal_link}}', 'https://ila-acc-web-main-11-09-26-lui063n9t-ila13.vercel.app/#student-portal')
         )
 
         # Create dispatch log
