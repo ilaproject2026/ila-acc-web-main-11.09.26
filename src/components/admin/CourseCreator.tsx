@@ -392,6 +392,100 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
     }
   };
 
+  // 4. SAVE & LAUNCH AI ENGINE HUB: Saves course locally and triggers external AI Engine with full parameters
+  const handleSaveAndLaunchAIEngine = () => {
+    if (!courseName.trim()) {
+      alert("Validation Error: Please enter at least a Course Title before generating with AI.");
+      return;
+    }
+
+    const currentCourseId = selectedCourse?.id || Math.random().toString(36).substr(2, 9);
+    const matchedPath = availablePaths.find(p => p.id === selectedPathId);
+    const matchedBatch = availableBatches.find(b => b.id === selectedBatchId);
+    const effectiveBatchId = isOpenSchedule ? undefined : (selectedBatchIds.length > 0 ? selectedBatchIds.join(', ') : (selectedBatchId || undefined));
+    const effectiveBatchName = isOpenSchedule ? 'Not Applicable (Open Schedule)' : (
+      selectedBatchIds.length > 0 
+        ? selectedBatchIds.map(id => availableBatches.find(b => b.id === id)?.name).filter(Boolean).join(', ')
+        : (matchedBatch?.name || undefined)
+    );
+
+    const activeCatForId = isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories[0] : (category.trim() || 'Education');
+    const pathCodeOrName = matchedPath?.code || matchedPath?.name || selectedPathId || 'Path';
+    const batchCodeOrName = (isOpenSchedule || batchNotApplicable) ? 'Open' : (matchedBatch?.code || matchedBatch?.name || effectiveBatchName || 'Slot');
+    const dynamicCompositeId = selectedCourse?.compositeCourseId || generateCompositeCourseId(activeCatForId, pathCodeOrName, batchCodeOrName, courseName.trim());
+
+    const activeCategoryStr = isMultiSelectMode && selectedCategories.length > 0 ? selectedCategories.join(', ') : (category.trim() || 'General Studies');
+    const activeSubCatStr = isMultiSelectMode && selectedSubCategories.length > 0 ? selectedSubCategories.join(', ') : (subCategory.trim() || 'Standard Track');
+    const effectiveChapters = chapters.trim() || '10';
+    const effectiveDuration = `${durationVal || '8'} ${durationType}`;
+    const effectiveMethods = getMethodsString();
+
+    const fullCourse: GlobalCourse = {
+      id: currentCourseId,
+      compositeCourseId: dynamicCompositeId,
+      category: activeCategoryStr,
+      subCategory: activeSubCatStr,
+      top_title: topTitle.trim() || 'Master Certification',
+      name: courseName.trim(),
+      subtitle: subtitle.trim() || 'AI-Powered comprehensive curriculum course.',
+      show_in_sub_nav: showInSubNav,
+      displayPosition: displayPosition || 1,
+      viewType: viewType || 'Main View',
+      staff: staff || 'Senior Academic Lead',
+      chapter: effectiveChapters,
+      duration: effectiveDuration,
+      methods: effectiveMethods,
+      pathId: selectedPathId || undefined,
+      pathName: matchedPath?.name || undefined,
+      batchId: effectiveBatchId,
+      batchName: effectiveBatchName,
+      materials: `${materialItems.length} Verified Digital Resources`,
+      materialItems: materialItems,
+      fee: `$${fee || '199'}`,
+      students: selectedCourse?.students || '0',
+      courseStructure: courseStructure || `Comprehensive academic curriculum for ${courseName.trim()}. Chapters include foundational principles, applied practice, and masterclass review.`,
+      libraryType: 'AI',
+      aiLibrarySection: 'Intelli Coach Classes',
+      testApprovalStatus: 'Approved'
+    };
+
+    // 1. Save course locally into management app DB
+    const exists = courseList.some(c => c.id === currentCourseId);
+    const updated = exists ? courseList.map(c => c.id === currentCourseId ? fullCourse : c) : [...courseList, fullCourse];
+    setCourseList(updated);
+    setGlobalCourses(updated);
+    window.dispatchEvent(new CustomEvent('ilas-courses-changed'));
+
+    // 2. Build URL parameters to pass to external AI Engine Hub
+    const baseUrl = 'https://ila-ai-engine-hub091026.vercel.app/';
+    const params = new URLSearchParams();
+    params.set('courseName', fullCourse.name);
+    if (fullCourse.category) params.set('category', fullCourse.category);
+    if (fullCourse.subCategory) params.set('subCategory', fullCourse.subCategory);
+    if (fullCourse.top_title) params.set('topTitle', fullCourse.top_title);
+    if (fullCourse.chapter) params.set('chapters', fullCourse.chapter);
+    if (fullCourse.duration) params.set('duration', fullCourse.duration);
+    if (fullCourse.staff) params.set('staff', fullCourse.staff);
+    if (fee) params.set('fee', fee);
+    if (fullCourse.methods) params.set('methods', fullCourse.methods);
+    if (matchedPath?.name) params.set('pathName', matchedPath.name);
+    if (effectiveBatchName) params.set('batchName', effectiveBatchName);
+    if (fullCourse.courseStructure) params.set('courseStructure', fullCourse.courseStructure);
+    params.set('compositeId', dynamicCompositeId);
+    params.set('autoGenerate', 'true');
+    params.set('returnUrl', window.location.href);
+
+    const fullExternalUrl = `${baseUrl}?${params.toString()}`;
+
+    setSaveFeedback({ 
+      message: `Course "${fullCourse.name}" saved! Launching AI Engine Hub in new tab with populated curriculum...`, 
+      type: 'success' 
+    });
+
+    // 3. Open external AI engine in a new tab so current admin workspace stays open
+    window.open(fullExternalUrl, '_blank');
+  };
+
   // Asset Upload Handlers
   const handleOpenAssetModal = (type: 'chapters' | 'images' | 'video' | 'promo') => {
     setActiveAssetModalType(type);
@@ -1275,15 +1369,27 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
                 </div>
               )}
 
-              {/* Primary Library Sync Button */}
+              {/* Primary AI Engine Hub Sync Button */}
+              <button 
+                type="button"
+                onClick={handleSaveAndLaunchAIEngine}
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-brand-600 hover:from-indigo-500 hover:to-brand-500 text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                title="Save course and trigger external AI Engine Hub with parameters"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Save &amp; Generate with AI Engine Hub</span>
+                <ExternalLink className="w-3.5 h-3.5 text-white/80" />
+              </button>
+
+              {/* Local Library Sync Button */}
               <button 
                 type="button"
                 onClick={handleCreateCourseAddToLibrary}
-                className="w-full py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Create &amp; Sync to Library</span>
-                <span className="text-[11px] font-normal opacity-90 hidden sm:inline">(Full Curriculum &amp; Batch Sync)</span>
+                <BookOpen className="w-4 h-4 text-brand-400" />
+                <span>Create &amp; Publish to Admin Library</span>
+                <span className="text-[10px] text-slate-300 hidden sm:inline">(Internal Catalog)</span>
               </button>
 
               {/* Secondary Actions: Save Record & Save Course (Shell) */}

@@ -322,10 +322,13 @@ export default function CoursePage({ courseTitle: initialTitle = "German Languag
   const displayBatches = connectedBatches.length > 0 ? connectedBatches : batches;
 
   const openRegistration = (extraInfo?: string, batch?: string, slot?: string) => {
-    const courseNameParam = encodeURIComponent(activeCourse?.name || initialTitle);
-    const batchParam = batch ? `&batch=${encodeURIComponent(batch)}` : '';
-    const slotParam = slot ? `&slot=${encodeURIComponent(slot)}` : '';
-    window.location.hash = `#applications?course=${courseNameParam}&info=${encodeURIComponent(extraInfo || '')}${batchParam}${slotParam}`;
+    window.dispatchEvent(new CustomEvent('open-registration-flow', {
+      detail: { 
+        package: `${activeCourse?.name || initialTitle} - ${extraInfo || 'Intelli-Coach AI Trainer™'}`,
+        batch: batch,
+        slot: slot
+      }
+    }));
   };
 
   const handleSelectCourse = (course: GlobalCourse) => {

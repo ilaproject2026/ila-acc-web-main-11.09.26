@@ -17,7 +17,7 @@ import StudentPathStudio, { StudentModality } from './education/StudentPathStudi
 
 interface LibraryAndClassRoomProps {
   onNavigateTab?: (tabName: string) => void;
-  initialSubView?: 'CLASSROOM' | 'COURSE_LIST' | 'COURSE_CREATOR' | 'PATH_BATCH_CREATOR';
+  initialSubView?: 'CLASSROOM' | 'COURSE_LIST' | 'COURSE_CREATOR' | 'PATH_BATCH_CREATOR' | 'STUDENT_PATHS';
 }
 
 interface ChapterItem {
@@ -53,9 +53,9 @@ interface SubtitleItem {
 }
 
 const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab, initialSubView = 'COURSE_CREATOR' }) => {
-  // Consolidated Course Management View: 'COURSE_CREATOR' | 'COURSE_LIST' | 'CLASSROOM'
-  const [activeAdminView, setActiveAdminView] = useState<'COURSE_CREATOR' | 'COURSE_LIST' | 'CLASSROOM'>(
-    initialSubView === 'COURSE_LIST' ? 'COURSE_LIST' : 'COURSE_CREATOR'
+  // Consolidated Course Management View: 'COURSE_CREATOR' | 'COURSE_LIST' | 'CLASSROOM' | 'STUDENT_PATHS'
+  const [activeAdminView, setActiveAdminView] = useState<'COURSE_CREATOR' | 'COURSE_LIST' | 'CLASSROOM' | 'STUDENT_PATHS'>(
+    initialSubView === 'COURSE_LIST' ? 'COURSE_LIST' : initialSubView === 'STUDENT_PATHS' ? 'STUDENT_PATHS' : 'COURSE_CREATOR'
   );
 
   // Student Path Preview Modal State
@@ -66,7 +66,7 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
 
   useEffect(() => {
     if (initialSubView) {
-      setActiveAdminView(initialSubView === 'COURSE_LIST' ? 'COURSE_LIST' : 'COURSE_CREATOR');
+      setActiveAdminView(initialSubView === 'COURSE_LIST' ? 'COURSE_LIST' : initialSubView === 'STUDENT_PATHS' ? 'STUDENT_PATHS' : 'COURSE_CREATOR');
     }
   }, [initialSubView]);
 
@@ -883,12 +883,13 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
           <button
             type="button"
             id="admin-lib-course-creator-btn"
-            onClick={() => setActiveAdminView('COURSE_CREATOR')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${activeAdminView === 'COURSE_CREATOR'
-                ? 'bg-brand-700 text-white ring-2 ring-brand-400'
+            onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeAdminView === 'COURSE_CREATOR' 
+                ? 'bg-brand-700 text-white ring-2 ring-brand-400' 
                 : 'bg-brand-600 hover:bg-brand-500 text-white'
-              }`}
-            title="Create &amp; Configure New Courses (4 Steps: Category, Path, Batch, Course Details)"
+            }`}
+            title="Create &amp; Configure New Courses (Launch AI Engine Hub)"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Course Creator</span>
@@ -910,17 +911,32 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
             <span>Course List</span>
           </button>
 
-          {/* 4. Student Paths Dropdown Menu */}
+          {/* 4. Student Paths & Allotment Studio Button */}
+          <button
+            type="button"
+            id="admin-lib-student-paths-btn"
+            onClick={() => setActiveAdminView('STUDENT_PATHS')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeAdminView === 'STUDENT_PATHS' 
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white ring-2 ring-indigo-400 font-black' 
+                : 'bg-indigo-900/80 hover:bg-indigo-800 text-indigo-100 border border-indigo-700/60'
+            }`}
+            title="Manage Student Paths, Allot Batches, VClass & Video Links"
+          >
+            <Compass className="w-4 h-4 text-amber-300" />
+            <span>Student Paths &amp; Allotment</span>
+          </button>
+
+          {/* 5. Student Paths Quick Sandbox Dropdown */}
           <div className="relative" ref={studentPathDropdownRef}>
             <button
               type="button"
               id="admin-lib-student-path-dropdown-btn"
               onClick={() => setIsStudentPathDropdownOpen(!isStudentPathDropdownOpen)}
-              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
-              title="Test and preview student learning modalities"
+              className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer border border-slate-700"
+              title="Quick modal sandbox selector"
             >
-              <Compass className="w-4 h-4 text-amber-300" />
-              <span>Student Paths</span>
+              <span>Sandbox</span>
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isStudentPathDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -1057,6 +1073,14 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
+                onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
+                className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Launch AI Engine Hub</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveAdminView('COURSE_LIST')}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
@@ -1066,8 +1090,8 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
             </div>
           </div>
 
-          <ServicesAndBatches
-            initialTab="CATEGORY"
+          <ServicesAndBatches 
+            initialTab="CATEGORY" 
             onNavigateTab={(tab) => {
               if (tab === 'LIBRARY & CLASSROOM' || tab === 'ADMIN LIBRARY') {
                 setActiveAdminView('COURSE_LIST');
@@ -1075,6 +1099,54 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
                 onNavigateTab?.(tab);
               }
             }}
+          />
+        </div>
+      )}
+
+      {/* RENDER STUDENT PATHS & ALLOTMENT STUDIO DIRECTLY IN ADMIN LIBRARY */}
+      {activeAdminView === 'STUDENT_PATHS' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white p-4 sm:p-5 rounded-2xl border border-slate-700 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-500 text-white px-2.5 py-0.5 rounded-full">
+                  Admin Library Student Console
+                </span>
+                <span className="text-[10px] text-indigo-300 font-semibold">
+                  Path Allotment, Batch Scheduling &amp; Virtual Classroom Controls
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg md:text-xl font-black text-white">
+                Student Paths &amp; Allotment Master Studio
+              </h2>
+              <p className="text-xs text-slate-300 max-w-2xl">
+                Manage candidate enrollments, allot learning paths (IntelliCoach AI, Slide + AI, Video + AI, Live Cohorts), assign batch schedules, broadcast live announcements, update VClass links, and preview candidate experience.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-registration-flow', { detail: { courseName: activeCourse.name } }))}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Enroll New Candidate</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveAdminView('COURSE_LIST')}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <List className="w-4 h-4 text-brand-300" />
+                <span>View Course List</span>
+              </button>
+            </div>
+          </div>
+
+          <StudentPathStudio 
+            isModal={false} 
+            initialModality={selectedStudentModality} 
+            selectedCourseId={activeCourse.id} 
           />
         </div>
       )}
@@ -1159,17 +1231,17 @@ const LibraryAndClassRoom: React.FC<LibraryAndClassRoomProps> = ({ onNavigateTab
               })}
             </div>
 
-            {/* Footer Quick Links */}
-            <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 font-medium">Curriculum Studio</span>
-              <button
-                onClick={() => setActiveAdminView('COURSE_CREATOR')}
-                className="font-bold text-brand-600 hover:text-brand-800 flex items-center gap-0.5 cursor-pointer"
-              >
-                Course Creator <ExternalLink className="w-3 h-3" />
-              </button>
-            </div>
-          </aside>
+          {/* Footer Quick Links */}
+          <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px]">
+            <span className="text-slate-500 font-medium">Curriculum Studio</span>
+            <button
+              onClick={() => { window.location.href = 'https://ila-ai-engine-hub091026.vercel.app/'; }}
+              className="font-bold text-brand-600 hover:text-brand-800 flex items-center gap-0.5 cursor-pointer"
+            >
+              Course Creator <ExternalLink className="w-3 h-3" />
+            </button>
+          </div>
+        </aside>
 
 
           {/* =========================================================================

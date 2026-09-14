@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BrainCircuit, Presentation, Video, Users, Flame, 
   Play, Pause, ChevronLeft, ChevronRight, BookOpen, Volume2, 
@@ -6,9 +6,14 @@ import {
   PhoneOff, Hand, Maximize2, Sparkles, CheckCircle2, 
   Calendar, Clock, MapPin, QrCode, ShieldCheck, Search,
   Sliders, Award, Send, X, ExternalLink, ArrowRight, Layers,
-  Compass, Laptop, Smartphone, FileText, Check, Activity, Info
+  Compass, Laptop, Smartphone, FileText, Check, Activity, Info,
+  Link2, Copy, UserCheck, PlusCircle
 } from 'lucide-react';
-import { getGlobalCourses, GlobalCourse } from '../../../lib/db';
+import { 
+  getGlobalCourses, GlobalCourse, getInquiries, Inquiry,
+  allotStudentBatchOrPath, setActiveStudent, updateStudentTopicProgress,
+  getGlobalBatches, GlobalBatch 
+} from '../../../lib/db';
 
 export type StudentModality = 
   | 'INTELLI_COACH' 
@@ -39,6 +44,128 @@ export const StudentPathStudio: React.FC<StudentPathStudioProps> = ({
     duration: '6 Months',
     totalChapters: 48
   };
+
+  // Real Enrolled Candidates State & Management
+  const [enrolledStudents, setEnrolledStudents] = useState<Inquiry[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [showAllotModal, setShowAllotModal] = useState<boolean>(false);
+  const [allotPath, setAllotPath] = useState<string>('Intelli-Coach AI Trainer™');
+  const [allotBatch, setAllotBatch] = useState<string>('Self-Paced AI (No Batch)');
+  const [allotClassLink, setAllotClassLink] = useState<string>('');
+  const [allotVideoLink, setAllotVideoLink] = useState<string>('');
+  const [isAllotAi, setIsAllotAi] = useState<boolean>(true);
+  const [adminBroadcastText, setAdminBroadcastText] = useState<string>('');
+  const [statusToast, setStatusToast] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [availableBatches, setAvailableBatches] = useState<string[]>([
+    'Morning Cohort (09:00 AM – 11:00 AM IST)',
+    'Afternoon Fast-Track (02:00 PM – 04:00 PM IST)',
+    'Evening Professional (06:30 PM – 08:30 PM IST)',
+    'Weekend Intensive (10:00 AM – 02:00 PM IST)'
+  ]);
+
+  const loadCandidates = () => {
+    const list = getInquiries().filter(i => 
+      i.category === 'Education' || 
+      i.course?.toLowerCase().includes('german') || 
+      i.course?.toLowerCase().includes('ielts')
+    );
+    setEnrolledStudents(list);
+    if (list.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(list[0].id);
+    }
+  };
+
+  useEffect(() => {
+    loadCandidates();
+    try {
+      const dbBatches = getGlobalBatches();
+      if (dbBatches && dbBatches.length > 0) {
+        const bNames = dbBatches.map(b => `${b.name} (${b.timings?.join(', ') || 'Scheduled'})`);
+        setAvailableBatches(prev => [...bNames, ...prev.filter(p => !bNames.some(b => b.includes(p.split(' ')[0])))]);
+      }
+    } catch {}
+
+    window.addEventListener('ilas-inquiries-changed', loadCandidates);
+    window.addEventListener('ilas-student-allotment-changed', loadCandidates);
+    return () => {
+      window.removeEventListener('ilas-inquiries-changed', loadCandidates);
+      window.removeEventListener('ilas-student-allotment-changed', loadCandidates);
+    };
+  }, []);
+
+  const activeStudent = enrolledStudents.find(s => s.id === selectedStudentId) || enrolledStudents[0] || null;
+
+  const handleOpenAllotModal = (student: Inquiry) => {
+    setAllotPath(student.path || 'Intelli-Coach AI Trainer™');
+    const isAi = (student.path || '').toLowerCase().includes('ai') || student.isAiMethod !== false;
+    setIsAllotAi(isAi);
+    setAllotBatch(isAi ? 'Self-Paced AI (No Batch)' : (student.batch || availableBatches[0]));
+    setAllotClassLink(student.classLink || `https://meet.google.com/ila-${Math.random().toString(36).substring(2, 7)}`);
+    setAllotVideoLink(student.videoLink || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    setShowAllotModal(true);
+  };
+
+  const handleSaveAllotment = () => {
+    if (!activeStudent) return;
+    const finalBatch = isAllotAi ? 'Self-Paced AI (No Batch)' : allotBatch;
+    allotStudentBatchOrPath(activeStudent.id, {
+      path: allotPath,
+      batch: finalBatch,
+      classLink: allotClassLink,
+      videoLink: allotVideoLink,
+      isAiMethod: isAllotAi
+    });
+    setShowAllotModal(false);
+    setStatusToast(`Allotment updated for ${activeStudent.name}: ${allotPath} (${finalBatch})`);
+    setTimeout(() => setStatusToast(null), 4000);
+  };
+
+  const handleSendBroadcast = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!adminBroadcastText.trim()) return;
+    
+    const text = `📢 [Admin Announcement]: ${adminBroadcastText.trim()}`;
+    setCoachChat(prev => [...prev, {
+      sender: 'ai',
+      text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }]);
+    setMeetMessages(prev => [...prev, {
+      sender: 'Admin Lead (Broadcast)',
+      text: adminBroadcastText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isHost: true
+    }]);
+
+    setAdminBroadcastText('');
+    setStatusToast(`Broadcast sent to candidate ${activeStudent?.name || 'portal'}!`);
+    setTimeout(() => setStatusToast(null), 3000);
+  };
+
+  const handleToggleMilestone = (topicName: string) => {
+    if (!activeStudent) return;
+    const isAlreadyDone = (activeStudent.completedTopics || []).includes(topicName);
+    updateStudentTopicProgress(activeStudent.id, topicName, !isAlreadyDone);
+    setStatusToast(`Milestone "${topicName}" marked ${!isAlreadyDone ? 'Completed' : 'Pending'} for ${activeStudent.name}!`);
+    setTimeout(() => setStatusToast(null), 3000);
+  };
+
+  const handleLaunchStudentPortal = () => {
+    if (activeStudent) {
+      setActiveStudent(activeStudent.email || activeStudent.id);
+    }
+    window.location.hash = '#student-portal';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  };
+
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedLink(label);
+    setTimeout(() => setCopiedLink(null), 2500);
+  };
+
+  const isStudentAi = !activeStudent || activeStudent.isAiMethod || (activeStudent.path || '').toLowerCase().includes('ai');
 
   // ================= MODALITY 1: INTELLICOURSE / INTELLICOACH STATE =================
   const [coachTopic, setCoachTopic] = useState('CEFR A1: Nominative & Accusative Cases');
@@ -247,7 +374,206 @@ export const StudentPathStudio: React.FC<StudentPathStudioProps> = ({
 
 
       {/* 2. DYNAMIC WORKSPACE FOR SELECTED MODALITY */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-950/60">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-950/60 space-y-5">
+
+        {/* =========================================================================
+            ADMIN CANDIDATE ALLOTMENT & OPERATIONS CONSOLE
+        ========================================================================= */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-3.5">
+          {/* Top Row: Candidate Selector & Master Action Buttons */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            
+            {/* Candidate Selector */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Candidate Under Management</div>
+                  <div className="font-black text-white text-sm">
+                    {activeStudent ? activeStudent.name : 'No Candidate Selected'}
+                  </div>
+                </div>
+              </div>
+
+              {enrolledStudents.length > 0 ? (
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 outline-none focus:border-indigo-500 font-semibold"
+                >
+                  {enrolledStudents.map(student => (
+                    <option key={student.id} value={student.id}>
+                      {student.name} — {student.course || 'German Language'} ({student.path || 'IntelliCoach AI'})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-amber-400 font-medium">No enrolled candidates in database</span>
+              )}
+
+              {/* Modality & Batch Badges */}
+              {activeStudent && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    {activeStudent.path || 'Intelli-Coach AI Trainer™'}
+                  </span>
+
+                  {isStudentAi ? (
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-purple-400" />
+                      24/7 AI (No Batches)
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+                      <Users className="w-3 h-3 text-blue-400" />
+                      Batch: {activeStudent.batch || 'Morning Cohort'}
+                    </span>
+                  )}
+
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                    Enrolled (Paid)
+                  </span>
+
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
+                    {(activeStudent.completedTopics || []).length} Milestones Passed
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {activeStudent && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAllotModal(activeStudent)}
+                    className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    title="Allot or Reassign Batch, Learning Path, and Class Links"
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Allot Batch &amp; Path</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopy((activeStudent.classLink || 'http://localhost:5175/#student-portal').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175'), 'VClass Link')}
+                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-700"
+                    title={(activeStudent.classLink || 'http://localhost:5175/#student-portal').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175')}
+                  >
+                    <Link2 className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Copy VClass</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopy((activeStudent.videoLink || 'http://localhost:5175/#student-portal?tab=materials').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175'), 'Video Link')}
+                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-700"
+                    title={(activeStudent.videoLink || 'http://localhost:5175/#student-portal?tab=materials').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175')}
+                  >
+                    <Video className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copy Video</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLaunchStudentPortal}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    title="Open Student Portal as this candidate"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Student Portal Preview</span>
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-registration-flow', { detail: { courseName: activeCourse.name } }))}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-700"
+                title="Enroll a new candidate"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>+ Enroll Candidate</span>
+              </button>
+            </div>
+
+          </div>
+
+          {/* Sub Row: Admin Live Broadcast & Milestone Approval */}
+          <div className="pt-3 border-t border-slate-800/80 grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+            
+            {/* Live Broadcast to Student Portal */}
+            <form onSubmit={handleSendBroadcast} className="lg:col-span-7 flex items-center gap-2">
+              <span className="text-[11px] font-bold text-indigo-300 shrink-0 flex items-center gap-1">
+                <Send className="w-3 h-3 text-indigo-400" /> Broadcast to Student:
+              </span>
+              <input
+                type="text"
+                value={adminBroadcastText}
+                onChange={(e) => setAdminBroadcastText(e.target.value)}
+                placeholder="Post instant tutor alert, doubt reply, or schedule memo..."
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-500"
+              />
+              <button
+                type="submit"
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer"
+              >
+                Send
+              </button>
+            </form>
+
+            {/* Quick Topic Milestones Check-off */}
+            <div className="lg:col-span-5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <span className="text-[11px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
+                <Award className="w-3 h-3 text-amber-400" /> Sign-off:
+              </span>
+              {[
+                'CEFR A1: Cases',
+                'Wechselpräpositionen',
+                'Modal Verbs',
+                'Workplace Intro'
+              ].map(topic => {
+                const isPassed = (activeStudent?.completedTopics || []).includes(topic);
+                return (
+                  <button
+                    key={topic}
+                    type="button"
+                    onClick={() => handleToggleMilestone(topic)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                      isPassed
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                    title={isPassed ? 'Click to unmark milestone' : 'Click to approve milestone'}
+                  >
+                    <CheckCircle2 className={`w-3 h-3 ${isPassed ? 'text-emerald-400' : 'text-slate-500'}`} />
+                    <span>{topic}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+          </div>
+
+          {/* Real-time Status Toast Notification */}
+          {statusToast && (
+            <div className="bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>{statusToast}</span>
+            </div>
+          )}
+
+          {copiedLink && (
+            <div className="bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+              <Copy className="w-4 h-4 text-indigo-400" />
+              <span>{copiedLink} copied to clipboard!</span>
+            </div>
+          )}
+        </div>
 
         {/* =========================================================================
             MODALITY 1: INTELLICOURSE / INTELLICOACH
@@ -1001,6 +1327,192 @@ export const StudentPathStudio: React.FC<StudentPathStudioProps> = ({
         )}
 
       </div>
+
+      {/* =========================================================================
+          ALLOTMENT MODAL (BATCH, PATH, VCLASS & VIDEO STREAM LINKS)
+      ========================================================================= */}
+      {showAllotModal && activeStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl text-white space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-white">Allot Student Batch &amp; Learning Path</h3>
+                  <p className="text-xs text-slate-400">Configure learning methodology, cohort allocation, and classroom access</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowAllotModal(false)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Student Info Card */}
+            <div className="bg-slate-950/80 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-xs">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">Candidate</span>
+                <span className="font-bold text-white text-sm">{activeStudent.name}</span>
+                <span className="text-slate-400 text-[11px] block">{activeStudent.email} • {activeStudent.phone}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">Course Enrolled</span>
+                <span className="font-bold text-indigo-300">{activeStudent.course || 'German Language'}</span>
+              </div>
+            </div>
+
+            {/* Modality & Path Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 block">Select Learning Modality &amp; Path</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { name: 'Intelli-Coach AI Trainer™', isAi: true, icon: BrainCircuit, desc: '24/7 AI tutor, adaptive CEFR drills' },
+                  { name: 'Slide + AI Synchronized', isAi: true, icon: Presentation, desc: 'Side-by-side book & slide sync' },
+                  { name: 'Video Masterclass + AI', isAi: true, icon: Video, desc: 'HD studio lecture + live AI index' },
+                  { name: '1-to-1 Live Human Tutor', isAi: false, icon: Users, desc: 'Scheduled live cohort / personal faculty' },
+                  { name: '1-to-Group Live Batch', isAi: false, icon: Users, desc: 'Live group classroom with batch slot' },
+                  { name: 'Sports & Camp Offline', isAi: false, icon: Flame, desc: 'Physical on-campus training & QR pass' }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isSelected = allotPath === item.name;
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => {
+                        setAllotPath(item.name);
+                        setIsAllotAi(item.isAi);
+                        if (item.isAi) {
+                          setAllotBatch('Self-Paced AI (No Batch)');
+                        } else if (allotBatch.includes('AI') || allotBatch.includes('No Batch')) {
+                          setAllotBatch(availableBatches[0] || 'Morning Cohort');
+                        }
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                        isSelected 
+                          ? 'border-indigo-500 bg-indigo-950/40 shadow-md ring-1 ring-indigo-500' 
+                          : 'border-slate-800 bg-slate-950 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${isSelected ? 'text-indigo-400' : 'text-slate-500'}`} />
+                      <div>
+                        <div className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                          {item.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{item.desc}</div>
+                        {item.isAi && (
+                          <span className="inline-block mt-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            24/7 AI (No Batches)
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Batch Allotment Policy enforcement */}
+            {isAllotAi ? (
+              <div className="p-3.5 bg-purple-950/40 border border-purple-500/30 rounded-2xl flex items-start gap-2.5 text-xs text-purple-200">
+                <Sparkles className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-black uppercase tracking-wider text-[10px] text-purple-300 block mb-0.5">
+                    Zero-Batch Policy for AI Modalities
+                  </span>
+                  AI self-paced learning operates 24/7 on-demand. There are no cohort constraints or fixed batch timings. The student can initiate sessions at any time.
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 block">Allot Live Cohort Batch &amp; Timings</label>
+                <select
+                  value={allotBatch}
+                  onChange={(e) => setAllotBatch(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-indigo-500 font-semibold"
+                >
+                  {availableBatches.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                  <option value="Weekend Executive Fast-Track (Sat &amp; Sun 04:00 PM – 07:00 PM)">
+                    Weekend Executive Fast-Track (Sat &amp; Sun 04:00 PM – 07:00 PM)
+                  </option>
+                  <option value="Night Owl Cohort (09:00 PM – 11:00 PM IST)">
+                    Night Owl Cohort (09:00 PM – 11:00 PM IST)
+                  </option>
+                </select>
+              </div>
+            )}
+
+            {/* Virtual Classroom (VClass) URL */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-300">Live Virtual Classroom (VClass) URL</label>
+                <button
+                  type="button"
+                  onClick={() => setAllotClassLink(`https://meet.google.com/ila-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 5)}`)}
+                  className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                >
+                  Generate Google Meet URL
+                </button>
+              </div>
+              <input
+                type="text"
+                value={allotClassLink}
+                onChange={(e) => setAllotClassLink(e.target.value)}
+                placeholder="https://meet.google.com/... or https://zoom.us/..."
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Path Video Lecture Stream URL */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-300">Path Video Stream / Lecture URL</label>
+                <button
+                  type="button"
+                  onClick={() => setAllotVideoLink('https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
+                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                >
+                  Use Masterclass Lecture URL
+                </button>
+              </div>
+              <input
+                type="text"
+                value={allotVideoLink}
+                onChange={(e) => setAllotVideoLink(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowAllotModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAllotment}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>Save Allotment &amp; Sync Live</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

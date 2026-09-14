@@ -1,3 +1,5 @@
+import { supabase, isSupabaseConfigured } from '../supabaseClient';
+
 export interface FollowUpRecord {
   id: string;
   date: string;
@@ -23,6 +25,9 @@ export interface Inquiry {
   amountPaid?: string;
   totalAmount?: string;
   classLink?: string;
+  videoLink?: string;
+  isAiMethod?: boolean;
+  completedTopics?: string[];
   category: 'Education' | 'Study Abroad' | 'Visa' | 'Jobs' | 'Work While You Study' | 'General Front Office';
   timestamp: string;
   aiScore?: number;
@@ -544,7 +549,7 @@ const SEED_INQUIRIES: Inquiry[] = [
     amountPaid: '$199.00',
     totalAmount: '$199.00',
     paymentStatus: 'Paid',
-    classLink: 'https://ilas.global/classroom/join/de-a1-sharma',
+    classLink: 'http://localhost:5175/#classroom?join=de-a1-sharma',
     category: 'Education',
     department: 'Education',
     source: 'Front-Desk Reception',
@@ -1114,6 +1119,105 @@ export const setGlobalCourses = (courses: GlobalCourse[]) => {
   window.dispatchEvent(new CustomEvent('ilas-courses-changed'));
 };
 
+export const syncCoursesFromSupabase = async (): Promise<GlobalCourse[]> => {
+  if (!isSupabaseConfigured || !supabase) {
+    return getGlobalCourses();
+  }
+
+  try {
+    let query = supabase
+      .from('library_courses')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    let { data, error: queryError } = await query;
+
+    if (queryError && (queryError.code === '42P01' || queryError.message?.includes('does not exist'))) {
+      const fallbackRes = await supabase
+        .from('courses')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      data = fallbackRes.data;
+      queryError = fallbackRes.error;
+    }
+
+    if (queryError) {
+      console.info('Supabase courses fetch note:', queryError.message);
+      return getGlobalCourses();
+    }
+
+    if (Array.isArray(data) && data.length > 0) {
+      const existing = getGlobalCourses();
+      const mappedSupabaseCourses: GlobalCourse[] = data.map((item: any, idx: number) => ({
+        id: item.id || `sb-${item.course_id || idx}`,
+        compositeCourseId: item.course_id || `SB-CRS-${idx + 101}`,
+        name: item.title || item.course_name || 'Academic Course',
+        top_title: item.category || 'Professional Track',
+        subtitle: item.subtitle || item.overview || 'Structured academic curriculum',
+        show_in_sub_nav: true,
+        displayPosition: idx + 1,
+        viewType: 'Main View',
+        staff: item.studied_by ? `Faculty Lead (For: ${item.studied_by})` : 'ILA Certified Instructor',
+        chapter: String(item.total_chapters || (item.chapters && item.chapters.length) || 16),
+        duration: item.duration || '12 Weeks',
+        methods: item.delivery_path || 'IntelliCoach AI + Live Mentoring',
+        pathId: item.delivery_path || 'p1',
+        pathName: item.delivery_path || 'Intelli-Coach AI Path',
+        batchId: item.batch || '1',
+        batchName: item.batch || 'Self-Paced / Flexible Cohort',
+        materials: 'Digital Library & Workbooks',
+        fee: item.fee || '$199',
+        students: String(item.students_count || '120'),
+        category: item.category || 'Education & Languages',
+        subCategory: item.sub_category || 'Academic Curriculum',
+        libraryType: (item.delivery_path || '').includes('AI') ? 'AI' : 'TUTOR',
+        courseStructure: item.overview || 'Comprehensive course syllabus with practical exercises.',
+        aiPayload: item.raw_course_data || {
+          customChapters: item.chapters || []
+        }
+      }));
+
+      // Merge: Keep Supabase courses prioritized, keep unique local courses
+      const merged = [
+        ...mappedSupabaseCourses,
+        ...existing.filter(ec => !mappedSupabaseCourses.some(sc => sc.name?.toLowerCase() === ec.name?.toLowerCase()))
+      ];
+
+      localStorage.setItem('ilas_courses', JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('ilas-courses-changed'));
+      return merged;
+    }
+  } catch (err) {
+    console.info('syncCoursesFromSupabase note:', err);
+  }
+
+  return getGlobalCourses();
+};
+
+// Auto-trigger sync on browser startup
+if (typeof window !== 'undefined' && isSupabaseConfigured) {
+  setTimeout(() => {
+    syncCoursesFromSupabase();
+
+    // Subscribe to real-time changes on library_courses
+    try {
+      if (supabase) {
+        supabase
+          .channel('realtime_library_courses_sync')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'library_courses' },
+            () => {
+              syncCoursesFromSupabase();
+            }
+          )
+          .subscribe();
+      }
+    } catch {}
+  }, 1000);
+}
+
+
 export const getGlobalApprovals = (): ApprovalRequest[] => {
   const data = localStorage.getItem('ilas_global_approvals');
   if (!data) return [];
@@ -1178,7 +1282,24 @@ export const getInquiries = (): Inquiry[] => {
     return SEED_INQUIRIES;
   }
   try {
-    return JSON.parse(data);
+    const list: Inquiry[] = JSON.parse(data);
+    let hasMigrated = false;
+    const migrated = list.map(item => {
+      let updatedItem = item;
+      if (item.classLink && item.classLink.includes('ilas.global')) {
+        updatedItem = { ...updatedItem, classLink: item.classLink.replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175') };
+        hasMigrated = true;
+      }
+      if (item.videoLink && item.videoLink.includes('ilas.global')) {
+        updatedItem = { ...updatedItem, videoLink: item.videoLink.replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175') };
+        hasMigrated = true;
+      }
+      return updatedItem;
+    });
+    if (hasMigrated) {
+      localStorage.setItem('ilas_inquiries', JSON.stringify(migrated));
+    }
+    return migrated;
   } catch (e) {
     console.warn('Failed to parse ilas_inquiries, resetting to seed:', e);
     localStorage.setItem('ilas_inquiries', JSON.stringify(SEED_INQUIRIES));
@@ -1191,9 +1312,137 @@ export const saveInquiry = (inquiry: Omit<Inquiry, 'id' | 'timestamp'>): Inquiry
   const newInquiry: Inquiry = {
     ...inquiry,
     id: Math.random().toString(36).substr(2, 9),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    completedTopics: inquiry.completedTopics || []
   };
   const updated = [newInquiry, ...inquiries];
+  localStorage.setItem('ilas_inquiries', JSON.stringify(updated));
+  window.dispatchEvent(new CustomEvent('ilas-inquiries-changed'));
+
+  // Live Supabase Sync (non-blocking)
+  if (isSupabaseConfigured) {
+    try {
+      Promise.resolve(supabase.from('inquiries').insert([{
+        id: newInquiry.id,
+        name: newInquiry.name,
+        email: newInquiry.email,
+        phone: newInquiry.phone,
+        course: newInquiry.course,
+        path: newInquiry.path,
+        batch: newInquiry.batch || null,
+        class_link: newInquiry.classLink || null,
+        video_link: newInquiry.videoLink || null,
+        payment_status: newInquiry.paymentStatus,
+        category: newInquiry.category,
+        created_at: newInquiry.timestamp
+      }])).then((res: any) => {
+        if (res?.error) console.info('Supabase inquiry insert note:', res.error.message);
+      }).catch(() => {});
+    } catch {
+      // safe fallback
+    }
+  }
+
+  return updated;
+};
+
+export const allotStudentBatchOrPath = (
+  id: string,
+  allotment: {
+    path?: string;
+    batch?: string;
+    slot?: string;
+    classLink?: string;
+    videoLink?: string;
+    isAiMethod?: boolean;
+  }
+): Inquiry[] => {
+  const inquiries = getInquiries();
+  const updated = inquiries.map(item => {
+    if (item.id === id) {
+      return {
+        ...item,
+        path: allotment.path !== undefined ? allotment.path : item.path,
+        batch: allotment.batch !== undefined ? allotment.batch : item.batch,
+        slot: allotment.slot !== undefined ? allotment.slot : item.slot,
+        classLink: allotment.classLink !== undefined ? allotment.classLink : item.classLink,
+        videoLink: allotment.videoLink !== undefined ? allotment.videoLink : item.videoLink,
+        isAiMethod: allotment.isAiMethod !== undefined ? allotment.isAiMethod : item.isAiMethod,
+        paymentStatus: item.paymentStatus === 'Pending' ? ('Paid' as const) : item.paymentStatus
+      };
+    }
+    return item;
+  });
+  localStorage.setItem('ilas_inquiries', JSON.stringify(updated));
+  window.dispatchEvent(new CustomEvent('ilas-inquiries-changed'));
+  window.dispatchEvent(new CustomEvent('ilas-student-allotment-changed', { detail: { id, allotment } }));
+
+  // Live Supabase Sync
+  if (isSupabaseConfigured) {
+    const targetItem = updated.find(i => i.id === id);
+    if (targetItem) {
+      try {
+        Promise.resolve(supabase.from('inquiries').upsert({
+          id: targetItem.id,
+          name: targetItem.name,
+          email: targetItem.email,
+          phone: targetItem.phone,
+          course: targetItem.course,
+          path: targetItem.path,
+          batch: targetItem.batch || null,
+          class_link: targetItem.classLink || null,
+          video_link: targetItem.videoLink || null,
+          payment_status: targetItem.paymentStatus,
+          category: targetItem.category,
+          updated_at: new Date().toISOString()
+        })).then((res: any) => {
+          if (res?.error) console.info('Supabase inquiry upsert note:', res.error.message);
+        }).catch(() => {});
+      } catch {
+        // safe fallback
+      }
+    }
+  }
+
+  return updated;
+};
+
+export const getActiveStudent = (): Inquiry | null => {
+  const activeEmail = localStorage.getItem('ilas_active_student_email') || localStorage.getItem('ilas_user_email');
+  const inquiries = getInquiries();
+  if (activeEmail) {
+    const matched = inquiries.find(i => i.email?.toLowerCase() === activeEmail.toLowerCase());
+    if (matched) return matched;
+  }
+  // Default to the latest Education / Course inquiry
+  const educationStudents = inquiries.filter(i => 
+    i.category === 'Education' || 
+    i.course?.toLowerCase().includes('german') || 
+    i.course?.toLowerCase().includes('ielts')
+  );
+  return educationStudents.length > 0 ? educationStudents[0] : (inquiries[0] || null);
+};
+
+export const setActiveStudent = (emailOrId: string): void => {
+  localStorage.setItem('ilas_active_student_email', emailOrId);
+  window.dispatchEvent(new CustomEvent('ilas-active-student-changed', { detail: emailOrId }));
+};
+
+export const updateStudentTopicProgress = (studentId: string, topicName: string, completed?: boolean): Inquiry[] => {
+  const inquiries = getInquiries();
+  const updated = inquiries.map(item => {
+    if (item.id === studentId) {
+      const current = item.completedTopics || [];
+      const isDone = current.includes(topicName);
+      const shouldBeDone = completed !== undefined ? completed : !isDone;
+      if (shouldBeDone && !isDone) {
+        return { ...item, completedTopics: [...current, topicName] };
+      } else if (!shouldBeDone && isDone) {
+        return { ...item, completedTopics: current.filter(t => t !== topicName) };
+      }
+    }
+    return item;
+  });
   localStorage.setItem('ilas_inquiries', JSON.stringify(updated));
   window.dispatchEvent(new CustomEvent('ilas-inquiries-changed'));
   return updated;
@@ -1385,7 +1634,7 @@ export const approveStudentPaymentAndUnlock = (id: string, classLink: string): I
       return { 
         ...item, 
         paymentStatus: 'Paid' as const, 
-        classLink: classLink || 'https://ilas.global/classroom/join/default-session' 
+        classLink: classLink || 'http://localhost:5175/#classroom?join=default-session' 
       };
     }
     return item;
@@ -1402,7 +1651,7 @@ export const processAutomatedPayment = (inquiryId: string, transactionId: string
       return { 
         ...item, 
         paymentStatus: 'Paid' as const,
-        classLink: `https://ilas.global/classroom/join/session-${transactionId}` 
+        classLink: `http://localhost:5175/#classroom?join=session-${transactionId}` 
       };
     }
     return item;
@@ -1615,7 +1864,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Welcome & Onboarding',
     channel: 'WhatsApp',
     subject: 'Willkommen to ILAS! Your Student Portal is Ready 🚀',
-    messageTemplate: 'Hallo {{name}}, Herzlich Willkommen to ILAS! Your student account for {{course}} is active. Access your IntelliCoach AI, live schedules, and learning materials here: https://ilas.global/student-login. Your assigned counselor is on standby.',
+    messageTemplate: 'Hallo {{name}}, Herzlich Willkommen to ILAS! Your student account for {{course}} is active. Access your IntelliCoach AI, live schedules, and learning materials here: http://localhost:5175/#student-portal. Your assigned counselor is on standby.',
     isActive: true,
     delayMinutes: 0,
     badge: 'Instant Zero-Latency',
@@ -1672,7 +1921,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Class & Schedule Alerts',
     channel: 'SMS',
     subject: 'ILAS Classroom Live in 60 Mins: 1-Click Link Inside',
-    messageTemplate: '⏰ {{name}}, your live batch for {{course}} begins in 60 minutes! Click to join your interactive room: https://ilas.global/live/{{batch_id}}. See you in class!',
+    messageTemplate: '⏰ {{name}}, your live batch for {{course}} begins in 60 minutes! Click to join your interactive room: http://localhost:5175/#classroom?batch={{batch_id}}. See you in class!',
     isActive: true,
     delayMinutes: 60,
     badge: '60-Min Direct Ping',
@@ -1691,7 +1940,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Enrollment Follow-ups',
     channel: 'WhatsApp',
     subject: 'Complete Your {{course}} Enrollment & Secure Your Seat',
-    messageTemplate: 'Hi {{name}}, we noticed you started your intake for {{course}} yesterday. Only 4 seats remain in this upcoming batch! Need quick guidance? Reply 1 to chat with Senior Counselor Priya or click https://ilas.global/admissions/resume.',
+    messageTemplate: 'Hi {{name}}, we noticed you started your intake for {{course}} yesterday. Only 4 seats remain in this upcoming batch! Need quick guidance? Reply 1 to chat with Senior Counselor Priya or click http://localhost:5175/#admissions.',
     isActive: true,
     delayMinutes: 1440,
     badge: '24h Conversion Nudge',
@@ -1729,7 +1978,7 @@ const SEED_COMM_WORKFLOWS: CommTriggerWorkflow[] = [
     category: 'Payment & Retention',
     channel: 'Multi-Channel',
     subject: 'Invoice & Installment Due Reminder for {{course}}',
-    messageTemplate: 'Hallo {{name}}, your installment of {{amount}} for {{course}} is due in 3 days. Pay conveniently via Card, UPI, or SEPA to maintain uninterrupted access to IntelliCoach AI & live classes: https://ilas.global/pay/invoice-{{id}}.',
+    messageTemplate: 'Hallo {{name}}, your installment of {{amount}} for {{course}} is due in 3 days. Pay conveniently via Card, UPI, or SEPA to maintain uninterrupted access to IntelliCoach AI & live classes: http://localhost:5175/#student-portal?invoice={{id}}.',
     isActive: true,
     delayMinutes: 4320,
     badge: 'Due-Date Automator',

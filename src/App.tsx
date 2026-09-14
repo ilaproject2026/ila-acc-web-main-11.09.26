@@ -5,6 +5,7 @@ import PortalLogin from './components/common/PortalLogin'
 import LanguageTrainer from './components/common/LanguageTrainer'
 import LiveConsultant from './components/common/LiveConsultant'
 import UnifiedIntakeForms from './components/common/UnifiedIntakeForms'
+import RegistrationFlow from './components/common/RegistrationFlow'
 
 import { useState, useEffect } from 'react'
 import HomePage from './pages/HomePage'
@@ -31,6 +32,17 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home')
   const [activeCourseTitle, setActiveCourseTitle] = useState('')
   const [activeCourseCategory, setActiveCourseCategory] = useState('')
+  const [isRegFlowOpen, setIsRegFlowOpen] = useState(false)
+  const [selectedRegPackage, setSelectedRegPackage] = useState('German Language A1–C2')
+
+  useEffect(() => {
+    const handleOpenReg = (e: any) => {
+      if (e.detail?.package) setSelectedRegPackage(e.detail.package)
+      setIsRegFlowOpen(true)
+    }
+    window.addEventListener('open-registration-flow', handleOpenReg)
+    return () => window.removeEventListener('open-registration-flow', handleOpenReg)
+  }, [])
 
   // Universal Typography & Theme Persistence across all routes and module pages
   useEffect(() => {
@@ -85,7 +97,7 @@ function App() {
           }
         }
         window.scrollTo(0, 0)
-      } else if (hash === '#student-dashboard') {
+      } else if (hash === '#student-dashboard' || hash === '#student-portal') {
         setCurrentPage('student-dashboard')
         window.scrollTo(0, 0)
       } else if (hash === '#admin-portal' || hash === '#admin-dashboard' || hash === '#erp-portal') {
@@ -179,6 +191,11 @@ function App() {
       {!isAdminPage && <LanguageTrainer />}
       {!isAdminPage && <LiveConsultant />}
       {!isAdminPage && <FloatingContact />}
+      <RegistrationFlow
+        isOpen={isRegFlowOpen}
+        onClose={() => setIsRegFlowOpen(false)}
+        selectedPackage={selectedRegPackage}
+      />
       <CookieBanner />
     </div>
   )

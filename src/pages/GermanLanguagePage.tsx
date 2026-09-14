@@ -73,8 +73,8 @@ export default function GermanLanguagePage() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-10">
                 <button 
-                  onClick={() => navigateToApplication('Education')}
-                  className="px-8 py-4 bg-brand-500 hover:bg-brand-400 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-brand-500/20 flex items-center gap-2 w-full sm:w-auto justify-center"
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-registration-flow', { detail: { package: 'German Language A1–C2 - Intelli-Coach AI Trainer™' } }))}
+                  className="px-8 py-4 bg-brand-500 hover:bg-brand-400 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-brand-500/20 flex items-center gap-2 w-full sm:w-auto justify-center cursor-pointer"
                 >
                   Enroll Now
                   <ChevronRight className="w-5 h-5" />
