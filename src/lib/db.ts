@@ -1061,7 +1061,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
       show_in_sub_nav: false, 
       displayPosition: 5, 
       viewType: 'Blocks View',
-      staff: 'Jane - ID 092 (Growth Lead)', 
+      staff: 'Jane - ID 0921 (Growth Lead)', 
       chapter: '12', 
       duration: '6 Weeks', 
       methods: 'Online FastTrack Video + AI [Video + AI Labs]', 
@@ -1082,7 +1082,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     },
     { 
       id: '6', 
-      compositeCourseId: 'MED-FSP-M01-MED6-606',
+      compositeCourseId: 'MED-FSP-M01-MED6-6061',
       name: 'Medical Terminology & FSP', 
       top_title: 'Healthcare German & Clinical Practice', 
       subtitle: 'Fachsprachprüfung (FSP) Preparation for Doctors, Dentists & Nurses', 
