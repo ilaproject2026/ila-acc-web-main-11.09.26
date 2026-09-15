@@ -14,6 +14,7 @@ import {
   allotStudentBatchOrPath, setActiveStudent, updateStudentTopicProgress,
   getGlobalBatches, GlobalBatch 
 } from '../../../lib/db';
+import { sanitizeAppUrl } from '../../../lib/config';
 
 export type StudentModality = 
   | 'INTELLI_COACH' 
@@ -460,9 +461,9 @@ export const StudentPathStudio: React.FC<StudentPathStudioProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => handleCopy((activeStudent.classLink || 'http://localhost:5175/#student-portal').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175'), 'VClass Link')}
+                    onClick={() => handleCopy(sanitizeAppUrl(activeStudent.classLink, '/#student-portal'), 'VClass Link')}
                     className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-700"
-                    title={(activeStudent.classLink || 'http://localhost:5175/#student-portal').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175')}
+                    title={sanitizeAppUrl(activeStudent.classLink, '/#student-portal')}
                   >
                     <Link2 className="w-3.5 h-3.5 text-indigo-400" />
                     <span>Copy VClass</span>
@@ -470,9 +471,9 @@ export const StudentPathStudio: React.FC<StudentPathStudioProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => handleCopy((activeStudent.videoLink || 'http://localhost:5175/#student-portal?tab=materials').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175'), 'Video Link')}
+                    onClick={() => handleCopy(sanitizeAppUrl(activeStudent.videoLink, '/#student-portal?tab=materials'), 'Video Link')}
                     className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-slate-700"
-                    title={(activeStudent.videoLink || 'http://localhost:5175/#student-portal?tab=materials').replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175')}
+                    title={sanitizeAppUrl(activeStudent.videoLink, '/#student-portal?tab=materials')}
                   >
                     <Video className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Copy Video</span>

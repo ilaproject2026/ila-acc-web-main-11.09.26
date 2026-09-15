@@ -22,6 +22,7 @@ import {
 import RegistrationFlow from '../common/RegistrationFlow';
 import { HubSocialPromoView } from './common/HubSocialPromoView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
+import { APP_BASE_URL, sanitizeAppUrl } from '../../lib/config';
 
 const EducationHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('HOD DB');
@@ -295,8 +296,8 @@ const EducationHub: React.FC = () => {
               <div className="space-y-3">
                 {enrolledStudents.map(inq => {
                   const isAi = (inq.path?.includes('AI') || inq.isAiMethod) ?? false;
-                  const vclass = inq.classLink || (isAi ? 'http://localhost:5175/#student-portal' : 'https://meet.google.com/ila-vclass-live');
-                  const vidLink = inq.videoLink || `http://localhost:5175/#student-portal?tab=materials`;
+                  const vclass = inq.classLink ? sanitizeAppUrl(inq.classLink) : (isAi ? `${APP_BASE_URL}/#student-portal` : 'https://meet.google.com/ila-vclass-live');
+                  const vidLink = inq.videoLink ? sanitizeAppUrl(inq.videoLink) : `${APP_BASE_URL}/#student-portal?tab=materials`;
 
                   return (
                     <div key={inq.id} className="p-4 bg-slate-50 hover:bg-white rounded-2xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-xs">
@@ -583,7 +584,7 @@ const EducationHub: React.FC = () => {
                     setIsAllotAi(isAi);
                     if (isAi) {
                       setAllotBatch('Self-Paced AI (No Batch)');
-                      setAllotClassLink('http://localhost:5175/#student-portal');
+                      setAllotClassLink(`${APP_BASE_URL}/#student-portal`);
                     } else {
                       setAllotBatch(availableBatches[0]);
                       setAllotClassLink(`https://meet.google.com/ila-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 5)}`);
@@ -659,7 +660,7 @@ const EducationHub: React.FC = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setAllotVideoLink(`http://localhost:5175/#student-portal?tab=materials`)}
+                    onClick={() => setAllotVideoLink(`${APP_BASE_URL}/#student-portal?tab=materials`)}
                     className="text-[10px] font-bold text-emerald-600 hover:underline cursor-pointer"
                   >
                     Auto-Assign Course Video Hub
@@ -671,7 +672,7 @@ const EducationHub: React.FC = () => {
                     type="url"
                     value={allotVideoLink}
                     onChange={(e) => setAllotVideoLink(e.target.value)}
-                    placeholder="http://localhost:5175/#student-portal?tab=materials"
+                    placeholder={`${APP_BASE_URL}/#student-portal?tab=materials`}
                     className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs text-slate-800 outline-none focus:ring-2 focus:ring-brand-500"
                     required
                   />

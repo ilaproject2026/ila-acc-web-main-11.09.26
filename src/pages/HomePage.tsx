@@ -152,7 +152,7 @@ export default function HomePage() {
         icon={Plane}
         color="text-blue-600"
         bgColor="bg-slate-50"
-        imageSrc="https://images.unsplash.com/photo-1436491865332-7a61a109c0f3?auto=format&fit=crop&q=80"
+        imageSrc="https://images.unsplash.com/photo-1553697388-94e804e2f0f6?q=80&w=765&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
         ctaText="Check Visa Services"
         ctaLink="#applications?tab=Visa"
         features={[

@@ -9,6 +9,7 @@ import {
   getActiveStudent, getInquiries, setActiveStudent, 
   updateStudentTopicProgress, Inquiry 
 } from '../lib/db';
+import { APP_BASE_URL, sanitizeAppUrl } from '../lib/config';
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState<'classroom' | 'library'>('classroom');
@@ -227,19 +228,14 @@ export default function StudentDashboard() {
   };
 
   // Resolved dynamic values
-  const sanitizeUrl = (url?: string, fallback: string = '') => {
-    if (!url) return fallback;
-    return url.replace(/https?:\/\/ilas\.global/gi, 'http://localhost:5175');
-  };
-
   const isAiMethod = currentStudent?.isAiMethod || currentStudent?.path?.includes('AI') || classMode === 'ai';
-  const assignedVClassLink = sanitizeUrl(
+  const assignedVClassLink = sanitizeAppUrl(
     currentStudent?.classLink,
-    isAiMethod ? 'http://localhost:5175/#student-portal' : 'https://meet.google.com/ila-vclass-live'
+    isAiMethod ? `${APP_BASE_URL}/#student-portal` : 'https://meet.google.com/ila-vclass-live'
   );
-  const assignedVideoLink = sanitizeUrl(
+  const assignedVideoLink = sanitizeAppUrl(
     currentStudent?.videoLink,
-    'http://localhost:5175/#student-portal?tab=materials'
+    `${APP_BASE_URL}/#student-portal?tab=materials`
   );
   const assignedBatch = currentStudent?.batch || (isAiMethod ? 'Self-Paced AI (No Batch Needed)' : 'Morning Cohort (09:00 AM – 11:00 AM IST)');
 

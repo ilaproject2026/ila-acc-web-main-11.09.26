@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, CheckCircle, ShieldCheck, Sparkles, Users, Video, Link2, Copy, Check, ExternalLink, ArrowRight, BrainCircuit } from 'lucide-react';
 import { saveInquiry, setActiveStudent, getGlobalBatches, GlobalBatch } from '../../lib/db';
+import { APP_BASE_URL } from '../../lib/config';
 
 const COURSES = [
   'German Language A1–C2',
@@ -139,11 +140,11 @@ export default function RegistrationFlow({ isOpen, onClose, selectedPackage }: R
 
     // Generate VClass (Virtual Classroom link)
     const vclassUrl = isAiMethod
-      ? `http://localhost:5175/#student-portal`
+      ? `${APP_BASE_URL}/#student-portal`
       : `https://meet.google.com/ila-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 5)}`;
 
     // Generate Path Video link
-    const videoUrl = `http://localhost:5175/#student-portal?tab=materials&course=${courseSlug}`;
+    const videoUrl = `${APP_BASE_URL}/#student-portal?tab=materials&course=${courseSlug}`;
 
     setGeneratedClassLink(vclassUrl);
     setGeneratedVideoLink(videoUrl);
