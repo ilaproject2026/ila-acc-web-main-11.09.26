@@ -8,12 +8,12 @@ export default defineConfig({
     tailwindcss(),
   ],
 
-  server: {
-    host: true,
-    port: 5175,
-    strictPort: true,
-    open: true,
-  },
+  // server: {
+  //   host: true,
+  //   port: 5175,
+  //   strictPort: true,
+  //   open: true,
+  // },
 
   build: {
     chunkSizeWarningLimit: 1000,
