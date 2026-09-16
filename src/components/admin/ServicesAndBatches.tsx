@@ -305,6 +305,8 @@ export const ServicesAndBatches: React.FC<ServicesAndBatchesProps> = ({ initialT
       const serviceToSave: GlobalPath = {
         ...selectedService,
         code: generatedCode,
+        category: selectedService.category || wizardCategory || undefined,
+        subCategory: selectedService.subCategory || wizardSubCategory || undefined,
         linkedCourseName: matchedCourse?.name || (selectedService.linkedCourseId ? selectedService.linkedCourseName : undefined)
       };
 
@@ -336,6 +338,8 @@ export const ServicesAndBatches: React.FC<ServicesAndBatchesProps> = ({ initialT
       const batchToSave: GlobalBatch = {
         ...selectedBatch,
         code: generatedCode,
+        category: selectedBatch.category || matchedPath?.category || wizardCategory || undefined,
+        subCategory: selectedBatch.subCategory || matchedPath?.subCategory || wizardSubCategory || undefined,
         linkedCourseName: matchedCourse?.name || (selectedBatch.linkedCourseId ? selectedBatch.linkedCourseName : undefined),
         linkedPathName: matchedPath?.name || (selectedBatch.linkedPathId ? selectedBatch.linkedPathName : undefined),
         timings: selectedBatch.timings || []

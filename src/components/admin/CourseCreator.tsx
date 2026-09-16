@@ -201,10 +201,57 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
     }
   };
 
+  // Dynamic cascading paths based on Sub-Category & Category
+  const filteredPaths = availablePaths.filter(p => {
+    if (subCategory) {
+      if (p.subCategory && p.subCategory.toLowerCase() === subCategory.toLowerCase()) return true;
+      if (p.name.toLowerCase().includes(subCategory.toLowerCase())) return true;
+      if (subCategory.toLowerCase().includes('german') && (p.category?.toLowerCase().includes('lang') || p.name.toLowerCase().includes('ger') || p.code?.includes('GER'))) return true;
+      if (subCategory.toLowerCase().includes('ielts') && (p.name.toLowerCase().includes('iel') || p.code?.includes('IEL'))) return true;
+      if (subCategory.toLowerCase().includes('full-stack') && (p.category?.toLowerCase().includes('soft') || p.code?.includes('FS'))) return true;
+      if (subCategory.toLowerCase().includes('sap') && (p.category?.toLowerCase().includes('sap') || p.code?.includes('SAP'))) return true;
+      if (subCategory.toLowerCase().includes('fsp') && (p.category?.toLowerCase().includes('health') || p.code?.includes('MED'))) return true;
+    }
+    if (category) {
+      if (p.category && p.category.toLowerCase() === category.toLowerCase()) return true;
+    }
+    return !category && !subCategory;
+  });
+  const effectivePaths = filteredPaths.length > 0 ? filteredPaths : availablePaths;
+
+  // Dynamic cascading batches based on selected Path, Sub-Category, and Category
+  const filteredBatches = availableBatches.filter(b => {
+    if (selectedPathId && b.linkedPathId) {
+      return b.linkedPathId === selectedPathId;
+    }
+    if (subCategory) {
+      if (b.subCategory && b.subCategory.toLowerCase() === subCategory.toLowerCase()) return true;
+      if (subCategory.toLowerCase().includes('german') && (b.code?.includes('GER') || b.linkedCourseName?.toLowerCase().includes('german'))) return true;
+      if (subCategory.toLowerCase().includes('ielts') && (b.code?.includes('IEL') || b.linkedCourseName?.toLowerCase().includes('ielts'))) return true;
+      if (subCategory.toLowerCase().includes('full-stack') && (b.code?.includes('FS') || b.linkedCourseName?.toLowerCase().includes('stack') || b.linkedCourseName?.toLowerCase().includes('soft'))) return true;
+      if (subCategory.toLowerCase().includes('sap') && (b.code?.includes('SAP') || b.linkedCourseName?.toLowerCase().includes('sap'))) return true;
+    }
+    if (category) {
+      if (b.category && b.category.toLowerCase() === category.toLowerCase()) return true;
+    }
+    return true;
+  });
+  const effectiveBatches = filteredBatches.length > 0 ? filteredBatches : availableBatches;
+
+  // Auto-sync valid path selection on taxonomy change
+  useEffect(() => {
+    if (effectivePaths.length > 0 && selectedPathId !== '__CREATE_NEW_PATH__') {
+      const isCurrentValid = effectivePaths.some(p => p.id === selectedPathId);
+      if (!isCurrentValid && !selectedCourse) {
+        setSelectedPathId(effectivePaths[0].id);
+      }
+    }
+  }, [category, subCategory, availablePaths]);
+
   // Helper method string
   const getMethodsString = () => {
     if (batchNotApplicable) return "Open-Schedule / IntelliCoach AI";
-    const matchedPath = availablePaths.find(p => p.id === selectedPathId);
+    const matchedPath = effectivePaths.find(p => p.id === selectedPathId) || availablePaths.find(p => p.id === selectedPathId);
     return matchedPath?.methods || "Hybrid, AI Adaptive & Interactive Tutoring";
   };
 
@@ -485,11 +532,14 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
     const newPathObj: GlobalPath = {
       id: newPathId,
       name: modalPathName.trim(),
+      code: `PTH-${modalPathName.trim().replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
       methods: modalPathMethod.trim(),
       position: availablePaths.length + 1,
       starting: modalPathStarting || new Date().toISOString().split('T')[0],
       ending: modalPathEnding || '',
       remarks: modalPathRemarks.trim() || 'Custom created path',
+      category: category || undefined,
+      subCategory: subCategory || undefined,
       linkedCourseId: currentActiveCourseId || undefined,
       linkedCourseName: currentActiveCourseName || undefined
     };
@@ -517,9 +567,12 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
     const newBatchObj: GlobalBatch = {
       id: newBatchId,
       name: modalBatchName.trim(),
+      code: `BAT-${modalBatchName.trim().replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
       starting: modalBatchStarting || new Date().toISOString().split('T')[0],
       remarks: modalBatchRemarks.trim() || 'Open for Registration',
       timings: modalBatchTimings.length > 0 ? modalBatchTimings : ['09:00 - 11:00'],
+      category: matchedPath?.category || category || undefined,
+      subCategory: matchedPath?.subCategory || subCategory || undefined,
       linkedCourseId: currentActiveCourseId || undefined,
       linkedCourseName: currentActiveCourseName || undefined,
       linkedPathId: matchedPath?.id,
@@ -704,7 +757,7 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
                     className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all truncate"
                   >
                     <option value="">-- Select Education Path --</option>
-                    {availablePaths.map(path => (
+                    {effectivePaths.map(path => (
                       <option key={path.id} value={path.id}>
                         {path.name} [{path.methods}]
                       </option>
@@ -755,16 +808,14 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
                       }}
                       className="w-full border border-slate-300 rounded-xl px-2.5 py-1 text-xs bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-2xs cursor-pointer transition-all"
                     >
-                      {availableBatches.length === 0 ? (
+                      {effectiveBatches.length === 0 ? (
                         <option disabled value="">No Batches Created Yet</option>
                       ) : (
-                        availableBatches
-                          .filter(batch => !selectedPathId || batch.linkedPathId === selectedPathId || !batch.linkedPathId)
-                          .map(batch => (
-                            <option key={batch.id} value={batch.id} className="py-0.5">
-                              {batch.name} {batch.timings.length > 0 ? `(${batch.timings[0]})` : ''}
-                            </option>
-                          ))
+                        effectiveBatches.map(batch => (
+                          <option key={batch.id} value={batch.id} className="py-0.5">
+                            {batch.name} {batch.timings && batch.timings.length > 0 ? `(${batch.timings[0]})` : ''}
+                          </option>
+                        ))
                       )}
                       <option value="__CREATE_NEW_BATCH__" className="font-bold text-emerald-700 bg-emerald-50 py-0.5">
                         ➕ + Create New Batch...
@@ -811,6 +862,180 @@ const CourseCreator: React.FC<CourseCreatorProps> = ({
                   >
                     Clear All
                   </button>
+                </div>
+              )}
+
+              {/* Dynamic Associated Educational Paths & Delivery Modalities */}
+              <div className="mt-1 pt-3.5 border-t border-brand-200/80 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Associated Educational Paths &amp; Modalities ({effectivePaths.length})
+                    </span>
+                    {subCategory && (
+                      <span className="text-[10px] font-bold bg-indigo-100/80 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded-full">
+                        {subCategory}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">Click path card to select &amp; cascade</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {effectivePaths.map(p => {
+                    const isSelected = selectedPathId === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => setSelectedPathId(p.id)}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all duration-150 flex flex-col justify-between gap-2 shadow-2xs ${
+                          isSelected 
+                            ? 'bg-gradient-to-br from-indigo-50 to-brand-50/60 border-indigo-500 ring-2 ring-indigo-400/40' 
+                            : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-1.5">
+                          <span className={`text-xs font-bold ${isSelected ? 'text-indigo-950' : 'text-slate-800'}`}>
+                            {p.name}
+                          </span>
+                          <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}>
+                            {p.code || 'PATH'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                          <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                          <span className="truncate font-medium">{p.methods}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] text-slate-400 pt-1 border-t border-slate-100">
+                          <span className="truncate max-w-[200px]">{p.remarks || 'Active Academic Track'}</span>
+                          {isSelected ? (
+                            <span className="text-indigo-700 font-bold flex items-center gap-0.5 shrink-0 bg-indigo-100/70 px-1.5 py-0.2 rounded">
+                              <Check className="w-3 h-3" /> Active
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 hover:text-indigo-600 font-medium">Select</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Dynamic Associated Batches & Time Slots */}
+              {!isOpenSchedule && (
+                <div className="mt-1 pt-3 border-t border-brand-200/80 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                        Associated Batches &amp; Time Slots ({effectiveBatches.length})
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">Click slot pill to associate</span>
+                  </div>
+
+                  {effectiveBatches.length === 0 ? (
+                    <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                      No linked batches for this path. Click <button type="button" onClick={handleOpenBatchModal} className="text-emerald-600 font-bold underline">+ New Batch</button> to add one.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {effectiveBatches.map(b => {
+                        const isBatchSelected = selectedBatchIds.includes(b.id) || selectedBatchId === b.id;
+                        return (
+                          <div 
+                            key={b.id}
+                            className={`p-2.5 rounded-xl border transition-all ${
+                              isBatchSelected 
+                                ? 'bg-gradient-to-r from-emerald-50 to-white border-emerald-500 ring-1 ring-emerald-300 shadow-2xs' 
+                                : 'bg-white border-slate-200 hover:border-emerald-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div 
+                                onClick={() => {
+                                  if (selectedBatchIds.includes(b.id)) {
+                                    const updated = selectedBatchIds.filter(id => id !== b.id);
+                                    setSelectedBatchIds(updated);
+                                    setSelectedBatchId(updated[0] || '');
+                                  } else {
+                                    const updated = [...selectedBatchIds, b.id];
+                                    setSelectedBatchIds(updated);
+                                    setSelectedBatchId(b.id);
+                                  }
+                                }}
+                                className="flex items-center gap-2 cursor-pointer flex-1"
+                              >
+                                <span className={`text-xs font-bold ${isBatchSelected ? 'text-emerald-950' : 'text-slate-800'}`}>
+                                  {b.name}
+                                </span>
+                                {b.code && (
+                                  <span className="text-[9px] font-mono bg-slate-100 border border-slate-200 text-slate-600 px-1 py-0.2 rounded">
+                                    {b.code}
+                                  </span>
+                                )}
+                                {b.remarks && (
+                                  <span className="text-[10px] text-emerald-700 bg-emerald-100/70 font-semibold px-1.5 py-0.2 rounded-full">
+                                    {b.remarks}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (selectedBatchIds.includes(b.id)) {
+                                    const updated = selectedBatchIds.filter(id => id !== b.id);
+                                    setSelectedBatchIds(updated);
+                                    setSelectedBatchId(updated[0] || '');
+                                  } else {
+                                    const updated = [...selectedBatchIds, b.id];
+                                    setSelectedBatchIds(updated);
+                                    setSelectedBatchId(b.id);
+                                  }
+                                }}
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                                  isBatchSelected 
+                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' 
+                                    : 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400'
+                                }`}
+                              >
+                                {isBatchSelected ? 'Selected ✓' : '+ Select'}
+                              </button>
+                            </div>
+
+                            {/* Batch Time Slot Pills */}
+                            {b.timings && b.timings.length > 0 && (
+                              <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-1.5 border-t border-slate-100">
+                                <span className="text-[10px] font-semibold text-slate-400">Time Slots:</span>
+                                {b.timings.map((t, idx) => (
+                                  <span
+                                    key={idx}
+                                    onClick={() => {
+                                      if (!selectedBatchIds.includes(b.id)) {
+                                        setSelectedBatchIds([...selectedBatchIds, b.id]);
+                                        setSelectedBatchId(b.id);
+                                      }
+                                    }}
+                                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full border cursor-pointer transition-all ${
+                                      isBatchSelected
+                                        ? 'bg-emerald-100/90 border-emerald-300 text-emerald-900 font-bold'
+                                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-emerald-300'
+                                    }`}
+                                  >
+                                    🕒 {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

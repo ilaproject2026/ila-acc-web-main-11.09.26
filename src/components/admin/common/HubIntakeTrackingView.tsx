@@ -24,6 +24,7 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [typeFilter, setTypeFilter] = useState<string>('All');
+  const [sourceFilter, setSourceFilter] = useState<string>('All');
 
   // New Inquiry Modal
   const [showModal, setShowModal] = useState(false);
@@ -32,6 +33,9 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
   const [newPhone, setNewPhone] = useState('');
   const [newProgram, setNewProgram] = useState('');
   const [newType, setNewType] = useState<DepartmentInquiryItem['type']>('Walk-in');
+  const [newSourceChannel, setNewSourceChannel] = useState('Walk-in Reception');
+  const [newReferralCode, setNewReferralCode] = useState('');
+  const [newReferrerName, setNewReferrerName] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newCounselor, setNewCounselor] = useState('Front Office Lead');
 
@@ -60,11 +64,14 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
       id: 'inq-' + Date.now(),
       department: departmentName,
       type: newType,
+      sourceChannel: newSourceChannel,
+      referralCode: newType === 'Referral' ? newReferralCode : undefined,
+      referrerName: newType === 'Referral' ? newReferrerName : undefined,
       name: newName,
       email: newEmail || `${newName.toLowerCase().replace(/\s+/g, '')}@candidate.in`,
       phone: newPhone,
       programOfInterest: newProgram || `${departmentName} Cohort Track`,
-      notes: newNotes || 'Direct walk-in inquiry at front office desk.',
+      notes: newNotes || (newType === 'Referral' ? `Referred via code ${newReferralCode} by ${newReferrerName}` : 'Direct walk-in inquiry at front office desk.'),
       status: 'New',
       counselorAssigned: newCounselor,
       createdAt: new Date().toISOString().split('T')[0]
@@ -76,6 +83,8 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
     setNewEmail('');
     setNewPhone('');
     setNewProgram('');
+    setNewReferralCode('');
+    setNewReferrerName('');
     setNewNotes('');
     showToast(`Inquiry for ${newName} logged successfully.`);
   };
@@ -89,10 +98,14 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
     const matchSearch = inq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         inq.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         inq.phone.includes(searchTerm) ||
+                        (inq.referralCode && inq.referralCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
                         inq.programOfInterest.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = statusFilter === 'All' || inq.status === statusFilter;
     const matchType = typeFilter === 'All' || inq.type === typeFilter;
-    return matchSearch && matchStatus && matchType;
+    const matchSource = sourceFilter === 'All' || 
+                        (sourceFilter === 'Referral' && inq.type === 'Referral') ||
+                        (inq.sourceChannel && inq.sourceChannel.includes(sourceFilter));
+    return matchSearch && matchStatus && matchType && matchSource;
   });
 
   return (
@@ -127,9 +140,9 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
         <div className="relative z-10 flex gap-2">
           <button
             onClick={() => setShowModal(true)}
-            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-black rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-black rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer hover:shadow-lg active:scale-95"
           >
-            <Plus className="w-4 h-4" /> + Log Walk-in Inquiry
+            <Plus className="w-4 h-4" /> + Add New Intake
           </button>
         </div>
       </div>
@@ -141,7 +154,7 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
           { label: 'New Uncontacted', count: inquiries.filter(i => i.status === 'New').length, color: 'text-blue-600', bg: 'bg-white' },
           { label: 'In-Review / Audit', count: inquiries.filter(i => i.status === 'In-Review').length, color: 'text-amber-600', bg: 'bg-white' },
           { label: 'Enrolled / Accepted', count: inquiries.filter(i => i.status === 'Enrolled').length, color: 'text-emerald-600', bg: 'bg-white' },
-          { label: 'Walk-ins Logged', count: inquiries.filter(i => i.type === 'Walk-in').length, color: 'text-indigo-600', bg: 'bg-white' }
+          { label: 'Referrals Tracked', count: inquiries.filter(i => i.type === 'Referral' || !!i.referralCode).length, color: 'text-purple-600', bg: 'bg-white' }
         ].map((stat, idx) => (
           <div key={idx} className={`${stat.bg} p-4 rounded-2xl border border-slate-200 shadow-xs space-y-1`}>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">{stat.label}</span>
@@ -157,7 +170,7 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              placeholder="Search inquiries by student name, phone, email, or program..."
+              placeholder="Search inquiries by student name, phone, email, referral code, or program..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border rounded-xl text-xs outline-none focus:border-brand-600 bg-slate-50"
@@ -179,11 +192,24 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
             </select>
 
             <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold outline-none text-brand-700"
+            >
+              <option value="All">All Sources / Channels</option>
+              <option value="Referral">Referral Program</option>
+              <option value="Walk-in">Walk-in Desk</option>
+              <option value="Meta Ads">Meta / Social Ads</option>
+              <option value="Online Funnel">Online Funnel</option>
+              <option value="WhatsApp Direct">WhatsApp Direct</option>
+            </select>
+
+            <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               className="px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold outline-none"
             >
-              <option value="All">All Channels</option>
+              <option value="All">All Intake Types</option>
               <option value="Walk-in">Walk-in</option>
               <option value="Online Funnel">Online Funnel</option>
               <option value="WhatsApp Direct">WhatsApp Direct</option>
@@ -198,7 +224,7 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
             <thead className="bg-slate-50 text-slate-500 uppercase font-black border-b border-slate-200 text-[10px]">
               <tr>
                 <th className="p-3">Candidate / Contact</th>
-                <th className="p-3">Channel</th>
+                <th className="p-3">Channel & Source</th>
                 <th className="p-3">Program of Interest</th>
                 <th className="p-3">Assigned Counselor</th>
                 <th className="p-3">Date</th>
@@ -209,7 +235,7 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredInquiries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                  <td colSpan={7} className="p-8 text-center text-slate-400 font-bold">
                     No intake inquiries found matching your filters.
                   </td>
                 </tr>
@@ -221,9 +247,25 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
                       <div className="text-[11px] text-slate-500">{inq.phone} • {inq.email}</div>
                     </td>
                     <td className="p-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
-                        {inq.type}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          inq.type === 'Referral' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                          inq.type === 'Walk-in' ? 'bg-blue-100 text-blue-800' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {inq.type}
+                        </span>
+                        {inq.referralCode && (
+                          <span className="text-[10px] text-purple-700 font-extrabold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                            Code: {inq.referralCode} {inq.referrerName ? `(${inq.referrerName})` : ''}
+                          </span>
+                        )}
+                        {inq.sourceChannel && inq.sourceChannel !== inq.type && (
+                          <span className="text-[10px] text-slate-500">
+                            {inq.sourceChannel}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3 font-semibold text-brand-700">
                       {inq.programOfInterest}
@@ -321,11 +363,18 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Channel Source</label>
+                  <label className="font-bold text-slate-700 block mb-1">Intake Type</label>
                   <select
                     value={newType}
-                    onChange={(e) => setNewType(e.target.value as any)}
-                    className="w-full p-2.5 border rounded-xl font-bold outline-none"
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setNewType(val);
+                      if (val === 'Referral') setNewSourceChannel('Referral Program');
+                      else if (val === 'Walk-in') setNewSourceChannel('Walk-in Reception');
+                      else if (val === 'WhatsApp Direct') setNewSourceChannel('WhatsApp Lead');
+                      else setNewSourceChannel('Online Website');
+                    }}
+                    className="w-full p-2.5 border rounded-xl font-bold outline-none bg-slate-50"
                   >
                     <option value="Walk-in">Walk-in Reception</option>
                     <option value="Online Funnel">Online Website</option>
@@ -343,6 +392,37 @@ export const HubIntakeTrackingView: React.FC<HubIntakeTrackingViewProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Referral Tracking Details (Visible when Referral selected) */}
+              {newType === 'Referral' && (
+                <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-1.5 text-purple-900 font-extrabold text-xs">
+                    <span>🎁 Referral Tracking Data</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-purple-950 block mb-1 text-[11px]">Referral / Partner Code *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. REF-DEV-882"
+                        value={newReferralCode}
+                        onChange={(e) => setNewReferralCode(e.target.value)}
+                        className="w-full p-2 border border-purple-300 rounded-xl bg-white font-black text-purple-900 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-purple-950 block mb-1 text-[11px]">Referrer Name / Ambassador</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Doe (Alumni)"
+                        value={newReferrerName}
+                        onChange={(e) => setNewReferrerName(e.target.value)}
+                        className="w-full p-2 border border-purple-300 rounded-xl bg-white outline-none font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Program of Interest</label>

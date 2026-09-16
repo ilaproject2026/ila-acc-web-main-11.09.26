@@ -16,6 +16,10 @@ import {
   deleteWorkStudyPackage,
   resetDefaultWorkStudyPackages,
   promoteJobDescriptionToMarketing,
+  approveWorkStudyPackage,
+  rejectWorkStudyPackage,
+  requestWorkStudyPackageApproval,
+  logWorkStudyPackageUpdate,
   getWorkStudyPrograms,
   saveWorkStudyProgram,
   deleteWorkStudyProgram,
@@ -26,14 +30,15 @@ import {
 } from '../../lib/db';
 import { HubAutoTriggerView } from './common/HubAutoTriggerView';
 import { HubIntakeTrackingView } from './common/HubIntakeTrackingView';
+import { HubHODAgendaWorkspace } from './common/HubHODAgendaWorkspace';
 
 interface WorkStudyHubProps {
-  initialTab?: 'packages' | 'hod' | 'promote_jd' | 'auto_trigger' | 'intake_tracking';
+  initialTab?: 'hod' | 'packages' | 'work_study_console' | 'promote_jd' | 'auto_trigger' | 'intake_tracking';
 }
 
-export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packages' }) => {
-  // Hub Main Sub-Navigation: 'packages' (CRUD) | 'hod' | 'promote_jd' | 'auto_trigger' | 'intake_tracking'
-  const [hubTab, setHubTab] = useState<'packages' | 'hod' | 'promote_jd' | 'auto_trigger' | 'intake_tracking'>(initialTab);
+export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'hod' }) => {
+  // Hub Main Sub-Navigation: 'hod' (FIRST) | 'packages' | 'work_study_console' | 'promote_jd' | 'auto_trigger' | 'intake_tracking'
+  const [hubTab, setHubTab] = useState<'hod' | 'packages' | 'work_study_console' | 'promote_jd' | 'auto_trigger' | 'intake_tracking'>(initialTab);
 
   // ================= 1. DYNAMIC PACKAGES (CRUD) STATE =================
   const [packages, setPackages] = useState<WorkStudyPackage[]>([]);
@@ -43,6 +48,10 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
   // Package Modal (Create / Edit)
   const [showPkgModal, setShowPkgModal] = useState(false);
   const [editingPkg, setEditingPkg] = useState<WorkStudyPackage | null>(null);
+
+  // Package Approvals & Updates Modals
+  const [showApprovalsModal, setShowApprovalsModal] = useState(false);
+  const [showUpdatesModal, setShowUpdatesModal] = useState(false);
 
   // Form fields for package
   const [pkgCategory, setPkgCategory] = useState<WorkStudyPackage['category']>('work-in-india');
@@ -58,6 +67,7 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
   const [pkgDescription, setPkgDescription] = useState('');
   const [pkgTerms, setPkgTerms] = useState('');
   const [pkgStatus, setPkgStatus] = useState<WorkStudyPackage['status']>('Active');
+  const [pkgApprovalStatus, setPkgApprovalStatus] = useState<'Draft' | 'Pending Approval' | 'Approved'>('Pending Approval');
 
   // ================= 2. HOD CONSOLE STATE =================
   const [programs, setPrograms] = useState<WorkStudyProgram[]>([]);
@@ -128,6 +138,7 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
       setPkgDescription(pkg.description);
       setPkgTerms(pkg.termsAndConditions || '');
       setPkgStatus(pkg.status);
+      setPkgApprovalStatus(pkg.approvalStatus || 'Approved');
     } else {
       setEditingPkg(null);
       setPkgCategory('work-in-india');
@@ -152,6 +163,7 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
       setPkgDescription('Comprehensive Work & Study track with structured stipend milestones and live corporate certifications.');
       setPkgTerms('Eligibility: Graduate or final-year diploma. Minimum 85% attendance during 6-month training session.');
       setPkgStatus('Active');
+      setPkgApprovalStatus('Pending Approval');
     }
     setShowPkgModal(true);
   };
@@ -174,6 +186,9 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
     const rolesArray = pkgRolesInput.split('\n').map(r => r.trim()).filter(Boolean);
     const streamsArray = pkgStreamsInput.split('\n').map(s => s.trim()).filter(Boolean);
 
+    const now = new Date().toISOString();
+    const existingLog = editingPkg?.updatesLog || [];
+
     const packageToSave: WorkStudyPackage = {
       id: editingPkg ? editingPkg.id : `WSP-PKG-${Date.now().toString().slice(-5)}`,
       category: pkgCategory,
@@ -194,12 +209,46 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
       description: pkgDescription,
       termsAndConditions: pkgTerms,
       status: pkgStatus,
-      createdAt: editingPkg ? editingPkg.createdAt : new Date().toISOString().split('T')[0]
+      approvalStatus: pkgApprovalStatus,
+      approvalRequestedAt: pkgApprovalStatus === 'Pending Approval' ? now : editingPkg?.approvalRequestedAt,
+      approvedBy: pkgApprovalStatus === 'Approved' ? (editingPkg?.approvedBy || 'HR Department') : undefined,
+      approvedAt: pkgApprovalStatus === 'Approved' ? (editingPkg?.approvedAt || now) : undefined,
+      updatesLog: [
+        {
+          date: now.split('T')[0],
+          user: 'Admin Editor',
+          note: editingPkg ? `Updated package details. Status: ${pkgApprovalStatus}` : `Created package. Status: ${pkgApprovalStatus}`
+        },
+        ...existingLog
+      ],
+      createdAt: editingPkg ? editingPkg.createdAt : now.split('T')[0]
     };
 
     saveWorkStudyPackage(packageToSave);
     setShowPkgModal(false);
-    setFeedback(`✅ Package "${packageToSave.title}" successfully ${editingPkg ? 'updated' : 'created'}!`);
+    setFeedback(`✅ Package "${packageToSave.title}" successfully ${editingPkg ? 'updated' : 'created'} (Status: ${pkgApprovalStatus})!`);
+    setTimeout(() => setFeedback(null), 4500);
+  };
+
+  // Approval Handlers
+  const handleApprovePackage = (id: string, title: string) => {
+    approveWorkStudyPackage(id, 'HR Department');
+    setFeedback(`✅ Package "${title}" approved by HR! Content is now live on front-end.`);
+    setTimeout(() => setFeedback(null), 4500);
+  };
+
+  const handleRejectPackage = (id: string, title: string) => {
+    const reason = prompt(`Enter rejection reason for "${title}":`, 'Requires curriculum or stipend adjustments');
+    if (reason) {
+      rejectWorkStudyPackage(id, reason);
+      setFeedback(`Package "${title}" flagged as Rejected: ${reason}`);
+      setTimeout(() => setFeedback(null), 4000);
+    }
+  };
+
+  const handleRequestApproval = (id: string, title: string) => {
+    requestWorkStudyPackageApproval(id);
+    setFeedback(`⏳ Approval requested from HR for "${title}".`);
     setTimeout(() => setFeedback(null), 4000);
   };
 
@@ -349,33 +398,51 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
         </div>
       )}
 
-      {/* 2. THREE CORE SUB-NAVIGATION TABS */}
+      {/* 2. CORE SUB-NAVIGATION TABS (HOD DB FIRST) */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
-        <button
-          onClick={() => setHubTab('packages')}
-          className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-            hubTab === 'packages'
-              ? 'bg-slate-900 text-white shadow-md'
-              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-          }`}
-        >
-          <Layers className="w-4 h-4 text-emerald-400" />
-          <span>Package Management (CRUD)</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black">
-            {packages.length}
-          </span>
-        </button>
-
         <button
           onClick={() => setHubTab('hod')}
           className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
             hubTab === 'hod'
+              ? 'bg-slate-900 text-white shadow-md ring-2 ring-emerald-400/30'
+              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-amber-400" />
+          <span>HOD DB</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black">
+            Agenda &amp; Dock
+          </span>
+        </button>
+
+        <button
+          onClick={() => setHubTab('packages')}
+          className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            hubTab === 'packages'
+              ? 'bg-slate-900 text-white shadow-md ring-2 ring-emerald-400/30'
+              : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+          }`}
+        >
+          <Layers className="w-4 h-4 text-emerald-400" />
+          <span>Package Management</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black">
+            {packages.length}
+          </span>
+          {packages.filter(p => p.approvalStatus === 'Pending Approval').length > 0 && (
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+          )}
+        </button>
+
+        <button
+          onClick={() => setHubTab('work_study_console')}
+          className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            hubTab === 'work_study_console'
               ? 'bg-slate-900 text-white shadow-md ring-2 ring-indigo-400/30'
               : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
           }`}
         >
           <Briefcase className="w-4 h-4 text-indigo-400" />
-          <span>HOD Work &amp; Study Console</span>
+          <span>Work &amp; Study Console</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-black">
             {candidates.length} Candidates
           </span>
@@ -390,7 +457,7 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
           }`}
         >
           <Megaphone className="w-4 h-4 text-amber-400" />
-          <span>Promote JD (Marketing Studio)</span>
+          <span>Promote JD</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black">
             Broadcast
           </span>
@@ -405,7 +472,7 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
           }`}
         >
           <Radio className="w-4 h-4 text-emerald-400" />
-          <span>Auto-Trigger (Follow-up)</span>
+          <span>Auto-Trigger</span>
         </button>
 
         <button
@@ -422,26 +489,42 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
       </div>
 
       {/* ========================================================================= */}
-      {/* SUB-TAB 1: DYNAMIC PACKAGE MANAGEMENT (CRUD) */}
+      {/* SUB-VIEW 0: HOD DB (UNIVERSAL FIRST PRIMARY TAB) */}
+      {/* ========================================================================= */}
+      {hubTab === 'hod' && (
+        <div className="space-y-6 animate-in fade-in">
+          <HubHODAgendaWorkspace
+            departmentName="Work While You Study"
+            departmentTitle="Work and Study Hub HOD Control Center"
+            departmentTagline="Executive Agendas, Live Voice/Text Dictation, Reference Media Dock, Corporate MoUs & Candidate Onboarding Strategy"
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUB-VIEW 1: DYNAMIC PACKAGE MANAGEMENT (WITH ACTION BUTTONS & APPROVALS) */}
       {/* ========================================================================= */}
       {hubTab === 'packages' && (
         <div className="space-y-6 animate-in fade-in">
-          {/* Filter & Search Bar */}
-          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
+          
+          {/* Top Category Filter & Action Buttons */}
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-4">
+            
+            {/* Category Navigation Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto">
               {[
                 { id: 'All', label: 'All Packages' },
                 { id: 'work-in-india', label: '🇮🇳 India Corporate' },
-                { id: 'work-in-abroad', label: '🌍 Abroad Services' },
-                { id: 'german-projects', label: '🇩🇪 German Projects' },
-                { id: 'reward-study-platform', label: '🏆 Reward & Earning' }
+                { id: 'work-in-abroad', label: '🌍 Abroad Service' },
+                { id: 'german-projects', label: '🇩🇪 German Project' },
+                { id: 'reward-study-platform', label: '🏆 Reward Earning' }
               ].map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategoryFilter(cat.id)}
-                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+                  className={`text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                     selectedCategoryFilter === cat.id
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                      ? 'bg-slate-900 text-white shadow-xs'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
@@ -450,15 +533,55 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
               ))}
             </div>
 
-            <div className="relative w-full md:w-72">
+            {/* Action Buttons: Create New, Updates, Approvals */}
+            <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+              <button
+                onClick={() => handleOpenPkgModal()}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all hover:scale-102"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create New</span>
+              </button>
+
+              <button
+                onClick={() => setShowUpdatesModal(true)}
+                className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                title="View Package Updates & Revision Logs"
+              >
+                <Clock className="w-4 h-4 text-indigo-600" />
+                <span>Updates</span>
+              </button>
+
+              <button
+                onClick={() => setShowApprovalsModal(true)}
+                className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                title="Review Packages Pending HR Approval"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <span>Approvals</span>
+                {packages.filter(p => p.approvalStatus === 'Pending Approval').length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black">
+                    {packages.filter(p => p.approvalStatus === 'Pending Approval').length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative w-full max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search packages, roles, stipend..."
+                placeholder="Search packages by title, role, stipend..."
                 value={packageSearch}
                 onChange={(e) => setPackageSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
+            </div>
+            <div className="text-xs font-bold text-slate-500">
+              Showing <strong className="text-slate-900">{filteredPackages.length}</strong> Packages in <span className="text-emerald-700 font-extrabold">{selectedCategoryFilter === 'All' ? 'All Categories' : selectedCategoryFilter}</span>
             </div>
           </div>
 
@@ -470,17 +593,49 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
                 className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:shadow-lg hover:border-emerald-300 transition-all flex flex-col justify-between group space-y-4"
               >
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                       {pkg.categoryLabel}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                      {pkg.badge}
-                    </span>
+
+                    {/* Approval Status Badge with Hover State */}
+                    {pkg.approvalStatus === 'Pending Approval' ? (
+                      <div className="relative group/tooltip inline-block">
+                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300/80 flex items-center gap-1 cursor-help shadow-xs animate-pulse">
+                          <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+                          Pending Approval
+                        </span>
+                        <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover/tooltip:flex flex-col items-end z-30 pointer-events-none">
+                          <div className="bg-slate-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap border border-slate-700 flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span>Approval Required from HR</span>
+                          </div>
+                          <div className="w-2 h-2 bg-slate-900 rotate-45 mr-4 -mt-1" />
+                        </div>
+                      </div>
+                    ) : pkg.approvalStatus === 'Approved' ? (
+                      <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        HR Approved
+                      </span>
+                    ) : pkg.approvalStatus === 'Draft' ? (
+                      <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                        Draft
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+                        Rejected
+                      </span>
+                    )}
                   </div>
 
                   <div>
-                    <h3 className="font-black text-lg text-slate-900 leading-snug">{pkg.title}</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-black text-lg text-slate-900 leading-snug">{pkg.title}</h3>
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md shrink-0">
+                        {pkg.badge}
+                      </span>
+                    </div>
                     <div className="text-xs font-black text-emerald-600 mt-1">{pkg.stipend}</div>
                   </div>
 
@@ -526,7 +681,7 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleOpenPkgModal(pkg)}
@@ -542,6 +697,27 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+
+                    {pkg.approvalStatus === 'Pending Approval' && (
+                      <button
+                        onClick={() => handleApprovePackage(pkg.id, pkg.title)}
+                        className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+                        title="Approve Package for public front-end display"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Approve (HR)</span>
+                      </button>
+                    )}
+
+                    {pkg.approvalStatus === 'Draft' && (
+                      <button
+                        onClick={() => handleRequestApproval(pkg.id, pkg.title)}
+                        className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Submit for HR</span>
+                      </button>
+                    )}
                   </div>
 
                   <button
@@ -562,9 +738,9 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
       )}
 
       {/* ========================================================================= */}
-      {/* SUB-TAB 2: HOD CONSOLE & CANDIDATES SUB-NAVIGATION */}
+      {/* SUB-VIEW 2: WORK & STUDY CANDIDATE CONSOLE */}
       {/* ========================================================================= */}
-      {hubTab === 'hod' && (
+      {hubTab === 'work_study_console' && (
         <div className="space-y-6 animate-in fade-in">
           {/* Metric Cockpit */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1030,6 +1206,59 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
                 </div>
               </div>
 
+              {/* HR Approval & Publishing Workflow */}
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+                <label className="font-black text-amber-900 uppercase tracking-wider block">
+                  HR Approval &amp; Publishing Workflow
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPkgApprovalStatus('Pending Approval')}
+                    className={`p-2.5 rounded-xl border text-left font-bold transition-all cursor-pointer ${
+                      pkgApprovalStatus === 'Pending Approval'
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-2 ring-amber-300'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-xs flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> Submit for HR Review
+                    </div>
+                    <div className="text-[10px] opacity-85 mt-0.5">Flags pending approval requirement</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPkgApprovalStatus('Approved')}
+                    className={`p-2.5 rounded-xl border text-left font-bold transition-all cursor-pointer ${
+                      pkgApprovalStatus === 'Approved'
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs ring-2 ring-emerald-300'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-xs flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Immediate HR Approval
+                    </div>
+                    <div className="text-[10px] opacity-85 mt-0.5">Publishes to live front-end page</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPkgApprovalStatus('Draft')}
+                    className={`p-2.5 rounded-xl border text-left font-bold transition-all cursor-pointer ${
+                      pkgApprovalStatus === 'Draft'
+                        ? 'bg-slate-900 text-white border-slate-950 shadow-xs ring-2 ring-slate-400'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-xs flex items-center gap-1">
+                      <Layers className="w-3.5 h-3.5" /> Save as Draft
+                    </div>
+                    <div className="text-[10px] opacity-85 mt-0.5">Withheld from public view</div>
+                  </button>
+                </div>
+              </div>
+
               {/* Modal Buttons */}
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
                 <button
@@ -1049,6 +1278,153 @@ export const WorkStudyHub: React.FC<WorkStudyHubProps> = ({ initialTab = 'packag
 
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. APPROVALS WORKFLOW MODAL */}
+      {/* ========================================================================= */}
+      {showApprovalsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative animate-in zoom-in-95 max-h-[85vh] overflow-y-auto space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                  HR Review &amp; Compliance Console
+                </span>
+                <h3 className="text-xl font-black text-slate-900 mt-1 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                  Package Approvals Queue
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowApprovalsModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {packages.filter(p => p.approvalStatus === 'Pending Approval').length === 0 ? (
+              <div className="text-center py-10 space-y-3">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                <h4 className="font-black text-slate-900 text-sm">All Packages Fully Approved</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  There are no packages currently pending HR approval. Newly created packages requiring HR sign-off will populate here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 font-bold flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-spin" />
+                  <span>
+                    Approval Required from HR: Approving a package immediately pushes its curriculum, stipend parameters, and application modal to the public Work While You Study front-end.
+                  </span>
+                </div>
+
+                {packages.filter(p => p.approvalStatus === 'Pending Approval').map(pkg => (
+                  <div key={pkg.id} className="p-4 rounded-2xl border border-amber-200 bg-amber-50/40 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                          {pkg.categoryLabel}
+                        </span>
+                        <h4 className="font-black text-slate-900 text-base mt-1">{pkg.title}</h4>
+                        <div className="text-xs font-black text-emerald-700 mt-0.5">{pkg.stipend}</div>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        Requested: {pkg.approvalRequestedAt?.split('T')[0] || pkg.createdAt}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      {pkg.description}
+                    </p>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200/60">
+                      <button
+                        onClick={() => handleRejectPackage(pkg.id, pkg.title)}
+                        className="px-4 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                      >
+                        Reject Package
+                      </button>
+                      <button
+                        onClick={() => handleApprovePackage(pkg.id, pkg.title)}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Approve Package (Publish to Live Web)</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. UPDATES & REVISION HISTORY MODAL */}
+      {/* ========================================================================= */}
+      {showUpdatesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative animate-in zoom-in-95 max-h-[85vh] overflow-y-auto space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full">
+                  Audit Trail &amp; Revision Log
+                </span>
+                <h3 className="text-xl font-black text-slate-900 mt-1 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-indigo-600" />
+                  Package Updates &amp; Change Logs
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowUpdatesModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {packages.map(pkg => (
+                <div key={pkg.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-black text-slate-900 text-sm">{pkg.title}</h4>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      pkg.approvalStatus === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                      pkg.approvalStatus === 'Pending Approval' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {pkg.approvalStatus || 'Approved'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Category: <strong>{pkg.categoryLabel}</strong> • Stipend: <strong>{pkg.stipend}</strong>
+                  </div>
+
+                  {pkg.updatesLog && pkg.updatesLog.length > 0 ? (
+                    <div className="space-y-1.5 pt-2 border-t border-slate-200/80">
+                      <div className="text-[10px] font-bold uppercase text-slate-400">Activity History:</div>
+                      {pkg.updatesLog.map((log, lIdx) => (
+                        <div key={lIdx} className="text-xs text-slate-700 flex items-start gap-2 bg-white p-2 rounded-xl border border-slate-200/60">
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <span className="font-bold text-slate-900">{log.user}</span> ({log.date}): {log.note}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-200/60">
+                      Initial seed release. Created on {pkg.createdAt}.
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

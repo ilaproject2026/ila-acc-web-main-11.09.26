@@ -45,8 +45,8 @@ export class ErrorBoundary extends Component<Props, State> {
               An unexpected error occurred while loading this view. Click below to recover and return to the home page.
             </p>
             {this.state.error && (
-              <pre className="text-[10px] text-left bg-slate-100 p-3 rounded-lg text-slate-700 overflow-x-auto max-h-32">
-                {this.state.error.message}
+              <pre className="text-[10px] text-left bg-slate-100 p-3 rounded-lg text-slate-700 overflow-x-auto max-h-64 whitespace-pre-wrap">
+                {this.state.error.stack || this.state.error.message}
               </pre>
             )}
             <button
