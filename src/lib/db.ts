@@ -155,12 +155,20 @@ export interface GlobalPath {
   name: string;
   code?: string;
   methods: string;
+  trainingMethods?: string[];
   position?: number;
   starting: string;
   ending: string;
   remarks: string;
   linkedCourseId?: string;
   linkedCourseName?: string;
+  fee?: string;
+  stagePricing?: Record<string, string>;
+  specializations?: string[];
+  stages?: string[];
+  category?: string;
+  subCategory?: string;
+  noBatchRequired?: boolean;
 }
 
 export interface GlobalBatch {
@@ -174,6 +182,14 @@ export interface GlobalBatch {
   linkedCourseName?: string;
   linkedPathId?: string;
   linkedPathName?: string;
+  category?: string;
+  subCategory?: string;
+  specialization?: string;
+  level?: string;
+  fee?: string;
+  studentAccessUrl?: string;
+  isSelfPaced?: boolean;
+  noBatchRequired?: boolean;
 }
 
 export interface CourseMaterialItem {
@@ -217,12 +233,28 @@ export interface EnrolledStudent {
   attendanceScore?: number;
 }
 
+export interface SubCategoryProduct {
+  id?: string;
+  name: string;
+  code: string;
+  position?: number;
+  description?: string;
+}
+
 export interface GlobalCategory {
   id: string;
   name: string;
   code?: string;
   subCategories: string[];
+  subCategoryProducts?: SubCategoryProduct[];
+  subCategoryCodes?: Record<string, string>;
   description?: string;
+  position?: number;
+  isJobRelated?: boolean;
+  showInNav?: boolean;
+  specializations?: string[];
+  stages?: string[];
+  assignedCourseIds?: string[];
   linkedCourseId?: string;
   linkedCourseName?: string;
 }
@@ -761,12 +793,40 @@ const SEED_ATTENDANCE: AttendanceLog[] = [
   { id: 'ATT-4', staffId: 'STAFF-004', staffName: 'Dr. Klaus Mueller', checkInTime: '09:15 AM', status: 'Present', date: new Date().toLocaleDateString() }
 ];
 
+// Helper to construct structured sub-category product items with unique product codes & ordering
+export const buildSubCategoryProducts = (categoryName: string, subCategories: string[]): SubCategoryProduct[] => {
+  const catPrefix = categoryName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() || 'CAT';
+  return (subCategories || []).map((sub, idx) => {
+    const subClean = sub.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() || 'PRD';
+    return {
+      id: `prd-${catPrefix.toLowerCase()}-${idx + 1}`,
+      name: sub,
+      code: `PRD-${catPrefix}-${subClean}${String(idx + 1).padStart(2, '0')}`,
+      position: idx + 1
+    };
+  });
+};
+
 // DB Retrieval & Save Functions
 export const getGlobalCategories = (): GlobalCategory[] => {
   const data = localStorage.getItem('ilas_categories');
   if (data) {
     try {
-      return JSON.parse(data);
+      const parsed: GlobalCategory[] = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.some(c => c.name === 'Language & Education' || c.name === 'Other Job-Related Courses')) {
+        const enriched = parsed.map(c => {
+          const prods = c.subCategoryProducts && c.subCategoryProducts.length > 0
+            ? c.subCategoryProducts
+            : buildSubCategoryProducts(c.name, c.subCategories || []);
+          const codes = c.subCategoryCodes || Object.fromEntries(prods.map(p => [p.name, p.code]));
+          return {
+            ...c,
+            subCategoryProducts: prods,
+            subCategoryCodes: codes
+          };
+        });
+        return enriched.sort((a, b) => (a.position || 99) - (b.position || 99));
+      }
     } catch (e) {
       console.warn('Failed to parse ilas_categories from localStorage, resetting to seed:', e);
     }
@@ -774,46 +834,155 @@ export const getGlobalCategories = (): GlobalCategory[] => {
   const seed: GlobalCategory[] = [
     {
       id: 'cat-1',
-      name: 'Education & Languages',
+      name: 'Language & Education',
       code: 'EDU-LANG',
+      position: 1,
+      showInNav: true,
       description: 'Foreign language certifications, CEFR tracks, and academic testing pathways.',
-      subCategories: ['German Language (A1–C2)', 'IELTS / TOEFL / PTE', 'Medical German & FSP', 'French & Spanish']
+      subCategories: ['German Language (A1–C2)', 'IELTS / TOEFL / PTE', 'French Language', 'Spanish Language', 'Medical German & FSP'],
+      subCategoryProducts: [
+        { id: 'prd-lang-1', name: 'German Language (A1–C2)', code: 'PRD-LANG-GER01', position: 1 },
+        { id: 'prd-lang-2', name: 'IELTS / TOEFL / PTE', code: 'PRD-LANG-IELTS02', position: 2 },
+        { id: 'prd-lang-3', name: 'French Language', code: 'PRD-LANG-FRN03', position: 3 },
+        { id: 'prd-lang-4', name: 'Spanish Language', code: 'PRD-LANG-SPN04', position: 4 },
+        { id: 'prd-lang-5', name: 'Medical German & FSP', code: 'PRD-LANG-MED05', position: 5 }
+      ],
+      subCategoryCodes: {
+        'German Language (A1–C2)': 'PRD-LANG-GER01',
+        'IELTS / TOEFL / PTE': 'PRD-LANG-IELTS02',
+        'French Language': 'PRD-LANG-FRN03',
+        'Spanish Language': 'PRD-LANG-SPN04',
+        'Medical German & FSP': 'PRD-LANG-MED05'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'Engineers', 'IT & Software', 'Business & Management'],
+      stages: ['A1 (Beginner)', 'A2 (Elementary)', 'B1 (Intermediate)', 'B2 (Upper Int.)', 'C1 (Advanced)', 'C2 (Mastery)', 'A1-C2 Combined Package']
     },
     {
       id: 'cat-2',
       name: 'Software & IT Training',
       code: 'TECH-SW',
+      position: 2,
+      showInNav: true,
       description: 'Modern full-stack engineering, cloud architecture, and DevOps tracks.',
-      subCategories: ['Full-Stack Web Dev (React/Node)', 'Cloud DevOps & AWS', 'Python & AI Engineering', 'Cybersecurity']
+      subCategories: ['Full-Stack Web Dev (React/Node)', 'Cloud DevOps & AWS', 'Python & AI Engineering', 'Cybersecurity', 'Mobile App Development'],
+      subCategoryProducts: [
+        { id: 'prd-tech-1', name: 'Full-Stack Web Dev (React/Node)', code: 'PRD-TECH-FS01', position: 1 },
+        { id: 'prd-tech-2', name: 'Cloud DevOps & AWS', code: 'PRD-TECH-AWS02', position: 2 },
+        { id: 'prd-tech-3', name: 'Python & AI Engineering', code: 'PRD-TECH-AI03', position: 3 },
+        { id: 'prd-tech-4', name: 'Cybersecurity', code: 'PRD-TECH-SEC04', position: 4 },
+        { id: 'prd-tech-5', name: 'Mobile App Development', code: 'PRD-TECH-MOB05', position: 5 }
+      ],
+      subCategoryCodes: {
+        'Full-Stack Web Dev (React/Node)': 'PRD-TECH-FS01',
+        'Cloud DevOps & AWS': 'PRD-TECH-AWS02',
+        'Python & AI Engineering': 'PRD-TECH-AI03',
+        'Cybersecurity': 'PRD-TECH-SEC04',
+        'Mobile App Development': 'PRD-TECH-MOB05'
+      },
+      specializations: ['General / Standard', 'Full-Stack Developer', 'Cloud & DevOps', 'AI & Data Science', 'Cybersecurity'],
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Track Package']
     },
     {
       id: 'cat-3',
-      name: 'Enterprise ERP & SAP',
+      name: 'Enterprise Software Training (SAP)',
       code: 'ERP-SAP',
+      position: 3,
+      showInNav: true,
       description: 'SAP S/4HANA functional modules, logistics, and financial workflows.',
-      subCategories: ['SAP FICO (Financials)', 'SAP MM (Supply Chain)', 'SAP SD (Sales)', 'SAP S/4HANA Architecture']
+      subCategories: ['SAP FICO (Financials)', 'SAP MM (Supply Chain)', 'SAP SD (Sales)', 'SAP S/4HANA Architecture'],
+      subCategoryProducts: [
+        { id: 'prd-sap-1', name: 'SAP FICO (Financials)', code: 'PRD-SAP-FICO01', position: 1 },
+        { id: 'prd-sap-2', name: 'SAP MM (Supply Chain)', code: 'PRD-SAP-MM02', position: 2 },
+        { id: 'prd-sap-3', name: 'SAP SD (Sales)', code: 'PRD-SAP-SD03', position: 3 },
+        { id: 'prd-sap-4', name: 'SAP S/4HANA Architecture', code: 'PRD-SAP-S404', position: 4 }
+      ],
+      subCategoryCodes: {
+        'SAP FICO (Financials)': 'PRD-SAP-FICO01',
+        'SAP MM (Supply Chain)': 'PRD-SAP-MM02',
+        'SAP SD (Sales)': 'PRD-SAP-SD03',
+        'SAP S/4HANA Architecture': 'PRD-SAP-S404'
+      },
+      specializations: ['General / Standard', 'Finance (FICO)', 'Supply Chain (MM)', 'Sales (SD)', 'S/4HANA Consultant'],
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Track Package']
     },
     {
       id: 'cat-4',
       name: 'Digital Marketing & Growth',
       code: 'MKT-GROWTH',
+      position: 4,
+      showInNav: true,
       description: 'Performance marketing, Meta & Google ads, and AI automation.',
-      subCategories: ['Meta & Google Ads Strategy', 'AI Copywriting & SEO', 'Growth Automation & CRM', 'Viral Social Content']
+      subCategories: ['Meta & Google Ads Strategy', 'AI Copywriting & SEO', 'Growth Automation & CRM', 'Viral Social Content'],
+      subCategoryProducts: [
+        { id: 'prd-mkt-1', name: 'Meta & Google Ads Strategy', code: 'PRD-MKT-ADS01', position: 1 },
+        { id: 'prd-mkt-2', name: 'AI Copywriting & SEO', code: 'PRD-MKT-SEO02', position: 2 },
+        { id: 'prd-mkt-3', name: 'Growth Automation & CRM', code: 'PRD-MKT-CRM03', position: 3 },
+        { id: 'prd-mkt-4', name: 'Viral Social Content', code: 'PRD-MKT-SOC04', position: 4 }
+      ],
+      subCategoryCodes: {
+        'Meta & Google Ads Strategy': 'PRD-MKT-ADS01',
+        'AI Copywriting & SEO': 'PRD-MKT-SEO02',
+        'Growth Automation & CRM': 'PRD-MKT-CRM03',
+        'Viral Social Content': 'PRD-MKT-SOC04'
+      },
+      specializations: ['General / Standard', 'Performance Marketer', 'Content & SEO', 'E-commerce & Growth'],
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Track Package']
     },
     {
       id: 'cat-5',
-      name: 'Healthcare & Clinical Practice',
+      name: 'Health & Clinical',
       code: 'MED-CARE',
+      position: 5,
+      showInNav: true,
       description: 'Medical terminology, nurse licensing, and German hospital clinical communications.',
-      subCategories: ['Fachsprachprüfung (FSP)', 'Kenntnisprüfung (KP)', 'Clinical Nursing Standards', 'Doctor-Patient Intake']
+      subCategories: ['Fachsprachprüfung (FSP)', 'Kenntnisprüfung (KP)', 'Clinical Nursing Standards', 'Doctor-Patient Intake'],
+      subCategoryProducts: [
+        { id: 'prd-med-1', name: 'Fachsprachprüfung (FSP)', code: 'PRD-MED-FSP01', position: 1 },
+        { id: 'prd-med-2', name: 'Kenntnisprüfung (KP)', code: 'PRD-MED-KP02', position: 2 },
+        { id: 'prd-med-3', name: 'Clinical Nursing Standards', code: 'PRD-MED-NUR03', position: 3 },
+        { id: 'prd-med-4', name: 'Doctor-Patient Intake', code: 'PRD-MED-INT04', position: 4 }
+      ],
+      subCategoryCodes: {
+        'Fachsprachprüfung (FSP)': 'PRD-MED-FSP01',
+        'Kenntnisprüfung (KP)': 'PRD-MED-KP02',
+        'Clinical Nursing Standards': 'PRD-MED-NUR03',
+        'Doctor-Patient Intake': 'PRD-MED-INT04'
+      },
+      specializations: ['Doctors / Physicians', 'Nurses & Caregivers', 'Dentists & Pharmacists', 'Medical Technicians'],
+      stages: ['A1 (Beginner)', 'A2 (Elementary)', 'B1 (Intermediate)', 'B2 (Upper Int.)', 'C1 (Advanced)', 'C2 (Mastery)', 'A1-C2 Combined Package']
+    },
+    {
+      id: 'cat-6',
+      name: 'Other Job-Related Courses',
+      code: 'JOB-REL',
+      position: 6,
+      isJobRelated: true,
+      showInNav: true,
+      description: 'Vocational career programs, technical certifications, European workplace onboarding and direct placement sprints.',
+      subCategories: ['Vocational Career Sprints', 'European Workplace Onboarding', 'German Technical Standards', 'Hospitality & Logistics Management'],
+      subCategoryProducts: [
+        { id: 'prd-job-1', name: 'Vocational Career Sprints', code: 'PRD-JOB-VOC01', position: 1 },
+        { id: 'prd-job-2', name: 'European Workplace Onboarding', code: 'PRD-JOB-ONB02', position: 2 },
+        { id: 'prd-job-3', name: 'German Technical Standards', code: 'PRD-JOB-DIN03', position: 3 },
+        { id: 'prd-job-4', name: 'Hospitality & Logistics Management', code: 'PRD-JOB-HOS04', position: 4 }
+      ],
+      subCategoryCodes: {
+        'Vocational Career Sprints': 'PRD-JOB-VOC01',
+        'European Workplace Onboarding': 'PRD-JOB-ONB02',
+        'German Technical Standards': 'PRD-JOB-DIN03',
+        'Hospitality & Logistics Management': 'PRD-JOB-HOS04'
+      },
+      specializations: ['General / Standard', 'Finance & Accounting', 'Logistics & Operations', 'HR & Admin', 'Business Development'],
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Track Package']
     }
   ];
   localStorage.setItem('ilas_categories', JSON.stringify(seed));
-  return seed;
+  return seed.sort((a, b) => (a.position || 99) - (b.position || 99));
 };
 
 export const setGlobalCategories = (categories: GlobalCategory[]) => {
-  localStorage.setItem('ilas_categories', JSON.stringify(categories));
+  const sorted = [...categories].sort((a, b) => (a.position || 99) - (b.position || 99));
+  localStorage.setItem('ilas_categories', JSON.stringify(sorted));
   window.dispatchEvent(new CustomEvent('ilas-categories-changed'));
 };
 
@@ -822,7 +991,7 @@ export const getGlobalPaths = (): GlobalPath[] => {
   if (data) {
     try {
       const parsed: GlobalPath[] = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.some(p => p.name.includes('Path 1 Test'))) {
+      if (Array.isArray(parsed) && parsed.some(p => p.methods === 'Live AI Adaptive')) {
         return parsed.sort((a, b) => (a.position || 99) - (b.position || 99));
       }
     } catch (e) {
@@ -830,29 +999,380 @@ export const getGlobalPaths = (): GlobalPath[] => {
     }
   }
   const seed: GlobalPath[] = [
-    // Paths for Course 1: German Language Test 1
-    { id: 'p1-1', name: 'Path 1 Test - Intelli-Coach AI Adaptive Path', methods: 'AI + Adaptive Tutoring & Real-time Accent Coach', position: 1, starting: '2026-10-12', ending: '2026-12-12', remarks: '24/7 Intelligent Pacing', linkedCourseId: '1', linkedCourseName: 'German Language Test 1' },
-    { id: 'p1-2', name: 'Path 2 Test - Interactive Video Labs & Workbooks', methods: 'Video Masterclass + Grammar Architecture Practice', position: 2, starting: '2026-10-15', ending: '2026-11-15', remarks: 'Self-paced with weekly assessments', linkedCourseId: '1', linkedCourseName: 'German Language Test 1' },
-    { id: 'p1-3', name: 'Path 3 Test - Live Native Mentor Cohort', methods: 'Live Instructor 1-on-1 Dialogue & Mock Exam Simulation', position: 3, starting: '2026-10-20', ending: '2027-01-20', remarks: 'Weekend interactive cohorts', linkedCourseId: '1', linkedCourseName: 'German Language Test 1' },
-    { id: 'p1-4', name: 'Path 4 Test - Clinical & Technical German Track', methods: 'Healthcare & Engineering Specialized Vocabulary', position: 4, starting: '2026-11-01', ending: '2027-02-01', remarks: 'Hospital / Industry Readiness', linkedCourseId: '1', linkedCourseName: 'German Language Test 1' },
+    // Real-Time Paths for Course 1: German Language Mastery & Foundation
+    { 
+      id: 'p1-1', 
+      name: 'IntelliCoach AI Adaptive Path', 
+      code: 'PTH-AI-101',
+      methods: 'Live AI Adaptive', 
+      trainingMethods: ['Live AI Adaptive', 'IntelliCoach 24/7 AI Pacing', 'Hybrid Live + AI'],
+      position: 1, 
+      starting: '2026-10-12', 
+      ending: '2026-12-12', 
+      remarks: '24/7 Intelligent Pacing, acoustic accent tuner & instant CEFR benchmark jumps', 
+      linkedCourseId: '1', 
+      linkedCourseName: 'German Language Mastery A1–C2',
+      fee: '$799',
+      stages: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'A1-C2 Package'],
+      stagePricing: {
+        'A1': '$129',
+        'A2': '$149',
+        'B1': '$179',
+        'B2': '$219',
+        'C1': '$269',
+        'C2': '$319',
+        'A1-C2 Package': '$799'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'German Language (A1–C2)'
+    },
+    { 
+      id: 'p1-2', 
+      name: 'Video + AI', 
+      code: 'PTH-VID-102',
+      methods: 'Interactive Video + AI Stream', 
+      trainingMethods: ['Interactive Video + AI Stream', 'Blended Masterclass', 'Autonomous Video Labs'],
+      position: 2, 
+      starting: '2026-10-15', 
+      ending: '2026-11-15', 
+      remarks: 'Synchronized high-definition video masterclass + smart AI answering stream', 
+      linkedCourseId: '1', 
+      linkedCourseName: 'German Language Mastery A1–C2',
+      fee: '$699',
+      stages: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'A1-C2 Package'],
+      stagePricing: {
+        'A1': '$99',
+        'A2': '$119',
+        'B1': '$149',
+        'B2': '$189',
+        'C1': '$229',
+        'C2': '$279',
+        'A1-C2 Package': '$699'
+      },
+      specializations: ['General / Standard', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'German Language (A1–C2)'
+    },
+    { 
+      id: 'p1-3', 
+      name: 'Slide + AI', 
+      code: 'PTH-SLD-103',
+      methods: 'Visual Knowledge Decks & AI Drills', 
+      trainingMethods: ['Visual Knowledge Decks & AI Drills', 'Interactive Micro-Decks', 'Autonomous Slide Practice'],
+      position: 3, 
+      starting: '2026-10-18', 
+      ending: '2026-11-18', 
+      remarks: 'Interactive visual knowledge decks, formula maps, mindmaps & AI micro-drills', 
+      linkedCourseId: '1', 
+      linkedCourseName: 'German Language Mastery A1–C2',
+      fee: '$649',
+      stages: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'A1-C2 Package'],
+      stagePricing: {
+        'A1': '$89',
+        'A2': '$109',
+        'B1': '$139',
+        'B2': '$179',
+        'C1': '$219',
+        'C2': '$259',
+        'A1-C2 Package': '$649'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'German Language (A1–C2)'
+    },
+    { 
+      id: 'p1-4', 
+      name: '1-to-1 Online', 
+      code: 'PTH-1TO1-104',
+      methods: '1-to-1 Private Mentorship', 
+      trainingMethods: ['1-to-1 Private Mentorship', 'Executive VIP Coaching', 'Direct Oral Defense Coach'],
+      position: 4, 
+      starting: '2026-10-20', 
+      ending: '2027-01-20', 
+      remarks: 'Dedicated private native faculty mentorship, bespoke pace & direct Goethe/Telc oral exam defense', 
+      linkedCourseId: '1', 
+      linkedCourseName: 'German Language Mastery A1–C2',
+      fee: '$1,299',
+      stages: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'A1-C2 Package'],
+      stagePricing: {
+        'A1': '$219',
+        'A2': '$249',
+        'B1': '$299',
+        'B2': '$349',
+        'C1': '$419',
+        'C2': '$499',
+        'A1-C2 Package': '$1,299'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'German Language (A1–C2)'
+    },
+    { 
+      id: 'p1-5', 
+      name: '1-to-Group Online', 
+      code: 'PTH-GRP-105',
+      methods: 'Online Interactive Cohorts', 
+      trainingMethods: ['Online Interactive Cohorts', 'Small Group Interactive', 'Weekend Intensive Cohort'],
+      position: 5, 
+      starting: '2026-10-22', 
+      ending: '2027-01-22', 
+      remarks: 'Interactive live cohorts with certified German native faculty & collaborative peer dialogues', 
+      linkedCourseId: '1', 
+      linkedCourseName: 'German Language Mastery A1–C2',
+      fee: '$899',
+      stages: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'A1-C2 Package'],
+      stagePricing: {
+        'A1': '$149',
+        'A2': '$179',
+        'B1': '$219',
+        'B2': '$269',
+        'C1': '$329',
+        'C2': '$399',
+        'A1-C2 Package': '$899'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'German Language (A1–C2)'
+    },
+    { 
+      id: 'p1-6', 
+      name: 'Camp Classes', 
+      code: 'PTH-CMP-106',
+      methods: 'Physical Immersion Mega-Camp', 
+      trainingMethods: ['Physical Immersion Mega-Camp', 'Intensive Weekend Bootcamps', 'Residential Immersion Lab'],
+      position: 6, 
+      starting: '2026-11-01', 
+      ending: '2026-11-21', 
+      remarks: 'Immersive physical mega-camp sprints, group language labs & intensive exam simulations', 
+      linkedCourseId: '1', 
+      linkedCourseName: 'German Language Mastery A1–C2',
+      fee: '$999',
+      stages: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'A1-C2 Package'],
+      stagePricing: {
+        'A1': '$169',
+        'A2': '$199',
+        'B1': '$239',
+        'B2': '$289',
+        'C1': '$349',
+        'C2': '$429',
+        'A1-C2 Package': '$999'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'German Language (A1–C2)'
+    },
+    { 
+      id: 'p1-7', 
+      name: 'Spot Classes', 
+      code: 'PTH-SPT-107',
+      methods: 'On-Site Campus & Corporate Delivery', 
+      trainingMethods: ['On-Site Campus & Corporate Delivery', 'Institutional Classroom Delivery', 'Corporate Shift Sprints'],
+      position: 7, 
+      starting: '2026-11-05', 
+      ending: '2026-12-05', 
+      remarks: 'Direct on-site campus and institutional delivery with university & corporate partners', 
+      linkedCourseId: '1', 
+      linkedCourseName: 'German Language Mastery A1–C2',
+      fee: '$949',
+      stages: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'A1-C2 Package'],
+      stagePricing: {
+        'A1': '$159',
+        'A2': '$189',
+        'B1': '$229',
+        'B2': '$279',
+        'C1': '$339',
+        'C2': '$409',
+        'A1-C2 Package': '$949'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'German Language (A1–C2)'
+    },
 
-    // Paths for Course 2: IELTS Test 2
-    { id: 'p2-1', name: 'Path 1 Test - Band 8.5+ Strategy Masterclass', methods: 'Cambridge Official Framework + Timed Reading Drills', position: 1, starting: '2026-10-15', ending: '2026-11-30', remarks: 'High Band Target', linkedCourseId: '2', linkedCourseName: 'IELTS Test 2' },
-    { id: 'p2-2', name: 'Path 2 Test - AI Essay & Writing Evaluation Clinic', methods: 'Automated Lexical & Grammar Scoring Engine', position: 2, starting: '2026-10-18', ending: '2026-11-20', remarks: 'Task 1 & Task 2 Mastery', linkedCourseId: '2', linkedCourseName: 'IELTS Test 2' },
-    { id: 'p2-3', name: 'Path 3 Test - Live 1-on-1 Mock Speaking Panel', methods: 'Certified Cambridge Native Examiner Mock Sessions', position: 3, starting: '2026-10-25', ending: '2026-12-15', remarks: 'Speaking Confidence Booster', linkedCourseId: '2', linkedCourseName: 'IELTS Test 2' },
-    { id: 'p2-4', name: 'Path 4 Test - FastTrack 30-Day Intensive Lab', methods: 'Daily Speed-Drills & High-Conversion Templates', position: 4, starting: '2026-11-01', ending: '2026-12-01', remarks: 'Fast Assessment', linkedCourseId: '2', linkedCourseName: 'IELTS Test 2' },
+    // Paths for Course 2: IELTS & English
+    { 
+      id: 'p2-1', 
+      name: 'Band 8.5+ Strategy Masterclass', 
+      methods: 'Cambridge Official Framework + Timed Reading Drills', 
+      position: 1, 
+      starting: '2026-10-15', 
+      ending: '2026-11-30', 
+      remarks: 'High Band Target with official Cambridge rubrics', 
+      linkedCourseId: '2', 
+      linkedCourseName: 'IELTS Test 2',
+      fee: '$149',
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Band 8.5+ Package'],
+      stagePricing: {
+        'Foundation': '$89',
+        'Intermediate': '$119',
+        'Advanced': '$149',
+        'Full Band 8.5+ Package': '$299'
+      },
+      specializations: ['General / Standard', 'Healthcare / Doctors', 'IT & Software', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'IELTS / TOEFL / PTE'
+    },
+    { 
+      id: 'p2-2', 
+      name: 'AI Essay & Writing Evaluation Clinic', 
+      methods: 'Automated Lexical & Grammar Scoring Engine', 
+      position: 2, 
+      starting: '2026-10-18', 
+      ending: '2026-11-20', 
+      remarks: 'Task 1 & Task 2 Mastery with instant AI lexical corrections', 
+      linkedCourseId: '2', 
+      linkedCourseName: 'IELTS Test 2',
+      fee: '$129',
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Band 8.5+ Package'],
+      stagePricing: {
+        'Foundation': '$79',
+        'Intermediate': '$99',
+        'Advanced': '$129',
+        'Full Band 8.5+ Package': '$249'
+      },
+      specializations: ['General / Standard', 'Business & Management'],
+      category: 'Language & Education',
+      subCategory: 'IELTS / TOEFL / PTE'
+    },
 
-    // Paths for Course 3: Software Test 3
-    { id: 'p3-1', name: 'Path 1 Test - Full-Stack React 19 & TypeScript', methods: 'Frontend Engineering & Enterprise Design Systems', position: 1, starting: '2026-10-20', ending: '2027-01-20', remarks: 'Modern Production Stack', linkedCourseId: '3', linkedCourseName: 'Software Test 3' },
-    { id: 'p3-2', name: 'Path 2 Test - Node.js, Express & Cloud Microservices', methods: 'Backend Architecture, PostgreSQL & REST APIs', position: 2, starting: '2026-10-25', ending: '2027-02-10', remarks: 'Scalable Systems', linkedCourseId: '3', linkedCourseName: 'Software Test 3' },
-    { id: 'p3-3', name: 'Path 3 Test - DevOps, Docker, CI/CD & Cloud Deploy', methods: 'Automated Pipelines & Cloud Infrastructure Lab', position: 3, starting: '2026-11-01', ending: '2027-02-28', remarks: 'Direct Job Deployment', linkedCourseId: '3', linkedCourseName: 'Software Test 3' },
-    { id: 'p3-4', name: 'Path 4 Test - Enterprise AI Pair-Programming Lab', methods: 'AI Copilots, Refactoring & Code Quality Systems', position: 4, starting: '2026-11-15', ending: '2027-03-01', remarks: 'Cutting-Edge Tools', linkedCourseId: '3', linkedCourseName: 'Software Test 3' },
+    // Paths for Course 3: Software Engineering
+    { 
+      id: 'p3-1', 
+      name: 'Full-Stack React 19 & TypeScript', 
+      methods: 'Frontend Engineering & Enterprise Design Systems', 
+      position: 1, 
+      starting: '2026-10-20', 
+      ending: '2027-01-20', 
+      remarks: 'Modern Production Stack with automated CI/CD and cloud deployment', 
+      linkedCourseId: '3', 
+      linkedCourseName: 'Software Test 3',
+      fee: '$599',
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Professional Track'],
+      stagePricing: {
+        'Foundation': '$199',
+        'Intermediate': '$299',
+        'Advanced': '$399',
+        'Full Professional Track': '$599'
+      },
+      specializations: ['IT & Software', 'Engineers'],
+      category: 'Software & IT Training',
+      subCategory: 'Full-Stack Web Dev (React/Node)'
+    },
+    { 
+      id: 'p3-2', 
+      name: 'Cloud DevOps, Docker & AWS Microservices', 
+      methods: 'Automated Pipelines & Cloud Infrastructure Lab', 
+      position: 2, 
+      starting: '2026-11-01', 
+      ending: '2027-02-28', 
+      remarks: 'Direct Job Deployment with German EU hiring partner sponsorship', 
+      linkedCourseId: '3', 
+      linkedCourseName: 'Software Test 3',
+      fee: '$649',
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Full Professional Track'],
+      stagePricing: {
+        'Foundation': '$229',
+        'Intermediate': '$329',
+        'Advanced': '$429',
+        'Full Professional Track': '$649'
+      },
+      specializations: ['IT & Software', 'Engineers'],
+      category: 'Software & IT Training',
+      subCategory: 'Cloud DevOps & AWS'
+    },
 
-    // Paths for Course 4: SAP Course Test 4
-    { id: 'p4-1', name: 'Path 1 Test - SAP FICO Financial Accounting Simulation', methods: 'General Ledger, Accounts Payable/Receivable & Asset Mgt', position: 1, starting: '2026-11-01', ending: '2027-01-15', remarks: 'Enterprise Hands-On Lab', linkedCourseId: '4', linkedCourseName: 'SAP Course Test 4' },
-    { id: 'p4-2', name: 'Path 2 Test - SAP MM/SD Supply Chain Logistics', methods: 'Procurement, Inventory Management & Sales Order Workflows', position: 2, starting: '2026-11-05', ending: '2027-01-20', remarks: 'Supply Chain Operations', linkedCourseId: '4', linkedCourseName: 'SAP Course Test 4' },
-    { id: 'p4-3', name: 'Path 3 Test - SAP S/4HANA Cloud Integration & Reporting', methods: 'Universal Journal & Real-Time Enterprise Analytics', position: 3, starting: '2026-11-10', ending: '2027-02-05', remarks: 'S/4HANA Migration Lab', linkedCourseId: '4', linkedCourseName: 'SAP Course Test 4' },
-    { id: 'p4-4', name: 'Path 4 Test - Corporate Practical Certification Lab', methods: 'Live Enterprise Sandbox & Case-Study Audits', position: 4, starting: '2026-11-20', ending: '2027-02-15', remarks: 'Certified SAP Practice', linkedCourseId: '4', linkedCourseName: 'SAP Course Test 4' }
+    // Paths for Course 4: SAP Enterprise
+    { 
+      id: 'p4-1', 
+      name: 'SAP FICO Financial Accounting Simulation', 
+      methods: 'General Ledger, Accounts Payable/Receivable & Asset Mgt', 
+      position: 1, 
+      starting: '2026-11-01', 
+      ending: '2027-01-15', 
+      remarks: 'Enterprise Hands-On Lab with real SAP sandbox access', 
+      linkedCourseId: '4', 
+      linkedCourseName: 'SAP Course Test 4',
+      fee: '$499',
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Complete Enterprise Package'],
+      stagePricing: {
+        'Foundation': '$189',
+        'Intermediate': '$269',
+        'Advanced': '$349',
+        'Complete Enterprise Package': '$499'
+      },
+      specializations: ['Business & Management', 'IT & Software'],
+      category: 'Enterprise Software Training (SAP)',
+      subCategory: 'SAP FICO (Financials)'
+    },
+    { 
+      id: 'p4-2', 
+      name: 'SAP MM / SD Supply Chain Logistics', 
+      methods: 'Procurement, Inventory Management & Sales Order Workflows', 
+      position: 2, 
+      starting: '2026-11-05', 
+      ending: '2027-01-20', 
+      remarks: 'Supply Chain Operations and S/4HANA migration workflows', 
+      linkedCourseId: '4', 
+      linkedCourseName: 'SAP Course Test 4',
+      fee: '$499',
+      stages: ['Foundation', 'Intermediate', 'Advanced', 'Complete Enterprise Package'],
+      stagePricing: {
+        'Foundation': '$189',
+        'Intermediate': '$269',
+        'Advanced': '$349',
+        'Complete Enterprise Package': '$499'
+      },
+      specializations: ['Business & Management', 'Engineers'],
+      category: 'Enterprise Software Training (SAP)',
+      subCategory: 'SAP MM (Supply Chain)'
+    },
+
+    // Paths for Course 5: Clinical Practice
+    { 
+      id: 'p5-1', 
+      name: 'Fachsprachprüfung (FSP) Hospital Protocol', 
+      methods: 'IntelliCoach AI + Chief Physician Simulator', 
+      position: 1, 
+      starting: '2026-11-10', 
+      ending: '2027-02-15', 
+      remarks: 'Doctor-Patient anamnesis dialogues, emergency triage terminology & hospital chart defense', 
+      linkedCourseId: '5', 
+      linkedCourseName: 'German Medical & Clinical Standards',
+      fee: '$349',
+      stages: ['B2', 'C1', 'FSP Oral Defense Package'],
+      stagePricing: {
+        'B2': '$249',
+        'C1': '$299',
+        'FSP Oral Defense Package': '$499'
+      },
+      specializations: ['Healthcare / Doctors'],
+      category: 'Health & Clinical',
+      subCategory: 'Fachsprachprüfung (FSP)'
+    },
+
+    // Paths for Course 6: Job-Related Sprints
+    { 
+      id: 'p6-1', 
+      name: 'European Vocational Career Sprint', 
+      methods: 'Dual-Study & Industry Apprenticeship Fast-Track', 
+      position: 1, 
+      starting: '2026-11-15', 
+      ending: '2027-02-20', 
+      remarks: 'Direct EU placement with DIN-standard portfolio and interview prep', 
+      linkedCourseId: '7', 
+      linkedCourseName: 'Vocational Career Sprint & EU Placement',
+      fee: '$299',
+      stages: ['Foundation', 'Placement Sprint', 'Full Career Sprint'],
+      stagePricing: {
+        'Foundation': '$129',
+        'Placement Sprint': '$199',
+        'Full Career Sprint': '$299'
+      },
+      specializations: ['General / Standard', 'Engineers', 'IT & Software', 'Business & Management'],
+      category: 'Other Job-Related Courses',
+      subCategory: 'Vocational Career Sprints'
+    }
   ];
   localStorage.setItem('ilas_paths', JSON.stringify(seed));
   return seed.sort((a, b) => (a.position || 99) - (b.position || 99));
@@ -862,25 +1382,20 @@ export const setGlobalPaths = (paths: GlobalPath[]) => {
   const sorted = [...paths].sort((a, b) => (a.position || 99) - (b.position || 99));
   localStorage.setItem('ilas_paths', JSON.stringify(sorted));
   window.dispatchEvent(new CustomEvent('ilas-paths-changed'));
+  window.dispatchEvent(new Event('storage'));
 };
 
 export const getGlobalBatches = (): GlobalBatch[] => {
   const data = localStorage.getItem('ilas_batches');
-  if (data) {
+  if (data !== null) {
     try {
       return JSON.parse(data);
     } catch (e) {
-      console.warn('Failed to parse ilas_batches from localStorage, resetting to seed:', e);
+      console.warn('Failed to parse ilas_batches from localStorage:', e);
+      return [];
     }
   }
-  const seed: GlobalBatch[] = [
-    { id: '1', name: 'Morning Batch A1', timings: ['09:00 - 11:00', '11:30 - 13:30'], starting: '2026-10-12', remarks: 'Fast Filling', linkedCourseId: '1', linkedCourseName: 'German Language Test 1', linkedPathId: 'p1-1', linkedPathName: 'Path 1 Test - Intelli-Coach AI Adaptive Path' },
-    { id: '2', name: 'Evening Intensive Batch', timings: ['18:00 - 20:00'], starting: '2026-10-15', remarks: 'Open for Registration', linkedCourseId: '2', linkedCourseName: 'IELTS Test 2', linkedPathId: 'p2-1', linkedPathName: 'Path 1 Test - Band 8.5+ Strategy Masterclass' },
-    { id: '3', name: 'Weekend Tech Bootcamp', timings: ['14:00 - 18:00 (Sat-Sun)'], starting: '2026-10-20', remarks: 'Available', linkedCourseId: '3', linkedCourseName: 'Software Test 3', linkedPathId: 'p3-1', linkedPathName: 'Path 1 Test - Full-Stack React 19 & TypeScript' },
-    { id: '4', name: 'Weekday Corporate Slot', timings: ['10:00 - 12:00'], starting: '2026-11-01', remarks: 'Enterprise Direct', linkedCourseId: '4', linkedCourseName: 'SAP Course Test 4', linkedPathId: 'p4-1', linkedPathName: 'Path 1 Test - SAP FICO Financial Accounting Simulation' }
-  ];
-  localStorage.setItem('ilas_batches', JSON.stringify(seed));
-  return seed;
+  return [];
 };
 
 export const setGlobalBatches = (batches: GlobalBatch[]) => {
@@ -929,11 +1444,18 @@ export const getGlobalCourses = (): GlobalCourse[] => {
   if (data) {
     try {
       const parsed: GlobalCourse[] = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.some(c => c.name === 'German Language Test 1')) {
-        return parsed.map(c => ({
-          ...c,
-          compositeCourseId: c.compositeCourseId || generateCompositeCourseId(c.category, c.pathName || c.pathId, c.batchName || c.batchId, c.name)
-        })).sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
+      if (Array.isArray(parsed) && parsed.some(c => c.category === 'Language & Education' || c.category === 'Other Job-Related Courses')) {
+        return parsed.map(c => {
+          let cat = c.category;
+          if (cat === 'Education & Languages') cat = 'Language & Education';
+          if (cat === 'Enterprise ERP & SAP') cat = 'Enterprise Software Training (SAP)';
+          if (cat === 'Healthcare & Clinical Practice') cat = 'Health & Clinical';
+          return {
+            ...c,
+            category: cat,
+            compositeCourseId: c.compositeCourseId || generateCompositeCourseId(cat, c.pathName || c.pathId, c.batchName || c.batchId, c.name)
+          };
+        }).sort((a, b) => (a.displayPosition || 99) - (b.displayPosition || 99));
       }
     } catch (e) {
       console.warn('Failed to parse ilas_courses from localStorage, resetting to seed:', e);
@@ -943,7 +1465,7 @@ export const getGlobalCourses = (): GlobalCourse[] => {
     { 
       id: '1', 
       compositeCourseId: 'EDU-GER-M01-GRM1-101',
-      name: 'German Language Test 1', 
+      name: 'German Language Mastery A1–C2', 
       top_title: 'German Language & Proficiency', 
       subtitle: 'Goethe & Telc Standard Certification Pathways with Clinical & Technical German', 
       show_in_sub_nav: true, 
@@ -952,15 +1474,15 @@ export const getGlobalCourses = (): GlobalCourse[] => {
       staff: 'Nadeem - ID 091 (Senior German Specialist)', 
       chapter: '24', 
       duration: '16 Weeks', 
-      methods: 'Path 1 Test - Intelli-Coach AI Adaptive Path [AI + Adaptive Tutoring]', 
+      methods: 'Intelli-Coach AI Adaptive Path [AI + Adaptive Tutoring & Live Faculty]', 
       pathId: 'p1-1', 
-      pathName: 'Path 1 Test - Intelli-Coach AI Adaptive Path', 
+      pathName: 'Intelli-Coach AI Adaptive Path', 
       batchId: '1', 
       batchName: 'Morning Batch A1', 
       materials: 'Digital Library & Goethe Workbooks', 
       fee: '$199', 
       students: '180', 
-      category: 'Education & Languages',
+      category: 'Language & Education',
       subCategory: 'German Language (A1–C2)',
       libraryType: 'TUTOR',
       enrolledStudentsList: [
@@ -981,15 +1503,15 @@ export const getGlobalCourses = (): GlobalCourse[] => {
       staff: 'AI Bot & Cambridge Certified Mentor', 
       chapter: '16', 
       duration: '8 Weeks', 
-      methods: 'Path 1 Test - Band 8.5+ Strategy Masterclass [Cambridge Mock Labs]', 
+      methods: 'Band 8.5+ Strategy Masterclass [Cambridge Mock Labs]', 
       pathId: 'p2-1', 
-      pathName: 'Path 1 Test - Band 8.5+ Strategy Masterclass', 
+      pathName: 'Band 8.5+ Strategy Masterclass', 
       batchId: '2', 
       batchName: 'Evening Intensive Batch', 
       materials: 'Cambridge Mock Portal & Audio Labs', 
       fee: '$149', 
       students: '240', 
-      category: 'Education & Languages',
+      category: 'Language & Education',
       subCategory: 'IELTS / TOEFL / PTE',
       libraryType: 'AI',
       enrolledStudentsList: [
@@ -1009,9 +1531,9 @@ export const getGlobalCourses = (): GlobalCourse[] => {
       staff: 'Jane - ID 092 (Lead Cloud Architect)', 
       chapter: '32', 
       duration: '24 Weeks', 
-      methods: 'Path 1 Test - Full-Stack React 19 & TypeScript [Live Instructor + Labs]', 
+      methods: 'Full-Stack React 19 & TypeScript [Live Instructor + Labs]', 
       pathId: 'p3-1', 
-      pathName: 'Path 1 Test - Full-Stack React 19 & TypeScript', 
+      pathName: 'Full-Stack React 19 & TypeScript', 
       batchId: '3', 
       batchName: 'Weekend Tech Bootcamp', 
       materials: 'Cloud Sandbox & Repos', 
@@ -1037,15 +1559,15 @@ export const getGlobalCourses = (): GlobalCourse[] => {
       staff: 'Nadeem - ID 091 (SAP Certified Lead)', 
       chapter: '18', 
       duration: '10 Weeks', 
-      methods: 'Path 1 Test - SAP FICO Financial Accounting Simulation [Corporate Labs]', 
+      methods: 'SAP FICO Financial Accounting Simulation [Corporate Labs]', 
       pathId: 'p4-1', 
-      pathName: 'Path 1 Test - SAP FICO Financial Accounting Simulation', 
+      pathName: 'SAP FICO Financial Accounting Simulation', 
       batchId: '4', 
       batchName: 'Weekday Corporate Slot', 
       materials: 'SAP Sandbox Access & ECC/S4HANA Guides', 
       fee: '$499', 
       students: '60', 
-      category: 'Enterprise ERP & SAP',
+      category: 'Enterprise Software Training (SAP)',
       subCategory: 'SAP FICO (Financials)',
       libraryType: 'TUTOR',
       enrolledStudentsList: [
@@ -1094,20 +1616,48 @@ export const getGlobalCourses = (): GlobalCourse[] => {
       chapter: '14', 
       duration: '12 Weeks', 
       methods: 'Live Enterprise Cohort [Live Instructor + Mentoring]', 
-      pathId: '3', 
-      pathName: 'Live Enterprise Cohort', 
+      pathId: 'p5-1', 
+      pathName: 'Fachsprachprüfung (FSP) Hospital Protocol', 
       batchId: '1', 
       batchName: 'Morning Batch A1', 
       materials: 'Clinical Case Files & Simulated Audio Dialogues', 
       fee: '$399', 
       students: '45', 
-      category: 'Healthcare & Clinical Practice',
+      category: 'Health & Clinical',
       subCategory: 'Fachsprachprüfung (FSP)',
       libraryType: 'TUTOR',
       enrolledStudentsList: [
         { id: 's13', name: 'Dr. Anjali Nair', email: 'dr.anjali@med.de', status: 'In Class', joinedAt: '09:00 AM', attendanceScore: 99 }
       ],
       courseStructure: 'Unit 1: Doctor-Patient Consultations\nUnit 2: Medical History (Anamnese) Intake\nUnit 3: Clinical Documentation (Arztbrief)\nUnit 4: Mock Examination Panels' 
+    },
+    { 
+      id: '7', 
+      compositeCourseId: 'JOB-SPR-W01-JOB7-707',
+      name: 'Vocational Career Sprint & EU Placement', 
+      top_title: 'Job-Related Programs & Career Sprints', 
+      subtitle: 'Direct European enterprise placements with DIN-standard CV & dual-study onboarding', 
+      show_in_sub_nav: true, 
+      displayPosition: 7, 
+      viewType: 'Both',
+      staff: 'Marcus Lindemann (EU Career Director)', 
+      chapter: '16', 
+      duration: '8 Weeks', 
+      methods: 'European Vocational Career Sprint [Dual-Study & Industry Apprenticeship Fast-Track]', 
+      pathId: 'p6-1', 
+      pathName: 'European Vocational Career Sprint', 
+      batchId: '1', 
+      batchName: 'Morning Batch A1', 
+      materials: 'DIN Resume Portfolio & EU Employer Database Access', 
+      fee: '$299', 
+      students: '72', 
+      category: 'Other Job-Related Courses',
+      subCategory: 'Vocational Career Sprints',
+      libraryType: 'TUTOR',
+      enrolledStudentsList: [
+        { id: 's14', name: 'Rohan Deshmukh', email: 'rohan.d@career.eu', status: 'In Class', joinedAt: '09:00 AM', attendanceScore: 97 }
+      ],
+      courseStructure: 'Sprint 1: DIN-Standard CV & European Professional Dossier\nSprint 2: Direct Interview Defense with 500+ Partner Employers\nSprint 3: Dual-Study & Workplace Apprenticeship Regulations\nSprint 4: Visa Filing Sponsorship & Relocation Onboarding' 
     }
   ];
   localStorage.setItem('ilas_courses', JSON.stringify(seed));

@@ -130,7 +130,7 @@ function App() {
       } else if (hash === '#study-abroad' || hash.startsWith('#study-abroad#')) {
         setCurrentPage('study-abroad')
         if (hash === '#study-abroad') window.scrollTo(0, 0)
-      } else if (hash === '#education' || hash.startsWith('#education#')) {
+      } else if (hash === '#education' || hash.startsWith('#education#') || hash.startsWith('#education?')) {
         setCurrentPage('education')
         if (hash === '#education') window.scrollTo(0, 0)
       } else {

@@ -1,17 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, ChevronDown, LogIn } from 'lucide-react'
-import { navItems } from '../../data/navigation'
-
-interface NavChildItem {
-  label: string
-  href: string
-  description?: string
-  action?: string
-}
+import { Menu, X, ChevronDown, ChevronRight, LogIn } from 'lucide-react'
+import { navItems, NavItem, NavChildItem, NavSubItem } from '../../data/navigation'
+import { getGlobalCategories } from '../../lib/db'
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [openSubDropdown, setOpenSubDropdown] = useState<string | null>(null)
+  const [dynamicNavItems, setDynamicNavItems] = useState<NavItem[]>(navItems)
   const [scrolled, setScrolled] = useState(false)
   const [showNavbar, setShowNavbar] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
@@ -20,6 +16,51 @@ export default function Navbar() {
   )
 
   const navRef = useRef<HTMLElement>(null)
+
+  // --------------------------------------------------
+  // Sync All Courses categories dynamically with backend DB
+  // --------------------------------------------------
+  useEffect(() => {
+    const syncCategoriesWithNav = () => {
+      const dbCategories = getGlobalCategories()
+      if (!dbCategories || dbCategories.length === 0) return
+
+      const allCoursesChildren: NavChildItem[] = dbCategories
+        .filter(c => c.showInNav !== false)
+        .sort((a, b) => (a.position || 99) - (b.position || 99))
+        .map(cat => ({
+          label: cat.name,
+          href: `#education?category=${encodeURIComponent(cat.name)}`,
+          description: cat.description || `Explore ${cat.name} certifications and pathways`,
+          subCategories: (cat.subCategories || []).map(sub => {
+            const code = cat.subCategoryCodes?.[sub] || cat.subCategoryProducts?.find(p => p.name === sub)?.code;
+            return {
+              label: sub,
+              href: `#education?category=${encodeURIComponent(cat.name)}&subCategory=${encodeURIComponent(sub)}`,
+              description: code ? `[${code}] Specialized program` : `Specialized ${sub} track`
+            };
+          })
+        }))
+
+      setDynamicNavItems(prev => prev.map(item => {
+        if (item.label === 'All Courses') {
+          return {
+            ...item,
+            children: allCoursesChildren.length > 0 ? allCoursesChildren : item.children
+          }
+        }
+        return item
+      }))
+    }
+
+    syncCategoriesWithNav()
+    window.addEventListener('ilas-categories-changed', syncCategoriesWithNav)
+    window.addEventListener('ilas-courses-changed', syncCategoriesWithNav)
+    return () => {
+      window.removeEventListener('ilas-categories-changed', syncCategoriesWithNav)
+      window.removeEventListener('ilas-courses-changed', syncCategoriesWithNav)
+    }
+  }, [])
 
   // --------------------------------------------------
   // Hash handling
@@ -254,7 +295,7 @@ export default function Navbar() {
               xl:gap-1
             "
           >
-            {navItems.map((item) => {
+            {dynamicNavItems.map((item) => {
               const isActive = isItemActive(item)
 
               if (item.children) {
@@ -349,7 +390,7 @@ export default function Navbar() {
                     </div>
 
                     {/* ==================================================
-                        DESKTOP DROPDOWN
+                        DESKTOP DROPDOWN WITH SUB-CATEGORY FLYOUTS
                     ================================================== */}
                     <div
                       className={`
@@ -357,7 +398,7 @@ export default function Navbar() {
                         top-full
                         left-0
                         pt-2
-                        w-[280px]
+                        w-[290px]
                         transition-all
                         duration-200
                         z-[60]
@@ -372,86 +413,132 @@ export default function Navbar() {
                       <div
                         className="
                           bg-white
-                          rounded-xl
+                          rounded-2xl
                           shadow-2xl
                           border
                           border-slate-100
-                          overflow-hidden
+                          overflow-visible
                           py-2
                         "
                       >
-                        {item.children.map(
-                          (child: NavChildItem) => (
-                            <a
+                        {item.children.map((child: NavChildItem) => {
+                          const hasSubCategories = child.subCategories && child.subCategories.length > 0
+                          const isSubOpen = openSubDropdown === child.label
+
+                          return (
+                            <div
                               key={child.label}
-                              href={child.href}
-                              onClick={(event) => {
-                                if (child.action) {
-                                  event.preventDefault()
-                                  handleNavClick(
-                                    child.action
-                                  )
-                                  return
-                                }
-
-                                setOpenDropdown(null)
-                                setMobileOpen(false)
-
-                                if (
-                                  window.location.hash ===
-                                  child.href
-                                ) {
-                                  window.dispatchEvent(
-                                    new HashChangeEvent(
-                                      'hashchange'
-                                    )
-                                  )
-                                }
-                              }}
-                              className={`
-                                block
-                                px-4
-                                py-3
-                                transition-colors
-                                border-l-[3px]
-                                ${
-                                  isChildActive(child)
-                                    ? 'bg-brand-50 border-brand-600'
-                                    : 'border-transparent hover:bg-slate-50 hover:border-brand-300'
-                                }
-                              `}
+                              className="relative group/sub"
+                              onMouseEnter={() => setOpenSubDropdown(child.label)}
+                              onMouseLeave={() => setOpenSubDropdown(null)}
                             >
-                              <span
+                              <a
+                                href={child.href}
+                                onClick={(event) => {
+                                  if (child.action) {
+                                    event.preventDefault()
+                                    handleNavClick(child.action)
+                                    return
+                                  }
+
+                                  setOpenDropdown(null)
+                                  setOpenSubDropdown(null)
+                                  setMobileOpen(false)
+
+                                  if (window.location.hash === child.href) {
+                                    window.dispatchEvent(new HashChangeEvent('hashchange'))
+                                  }
+                                }}
                                 className={`
-                                  block
-                                  text-sm
-                                  font-semibold
+                                  flex items-center justify-between
+                                  px-4 py-3
+                                  transition-colors
+                                  border-l-[3px]
                                   ${
                                     isChildActive(child)
-                                      ? 'text-brand-700'
-                                      : 'text-slate-800'
+                                      ? 'bg-brand-50 border-brand-600'
+                                      : 'border-transparent hover:bg-slate-50 hover:border-brand-300'
                                   }
                                 `}
                               >
-                                {child.label}
-                              </span>
+                                <div className="min-w-0 pr-1">
+                                  <span
+                                    className={`
+                                      block text-sm font-semibold truncate
+                                      ${
+                                        isChildActive(child)
+                                          ? 'text-brand-700'
+                                          : 'text-slate-800'
+                                      }
+                                    `}
+                                  >
+                                    {child.label}
+                                  </span>
 
-                              {child.description && (
-                                <span
-                                  className="
-                                    block
-                                    text-xs
-                                    text-slate-500
-                                    mt-1
-                                    leading-relaxed
-                                  "
+                                  {child.description && (
+                                    <span className="block text-xs text-slate-500 mt-0.5 leading-relaxed line-clamp-1">
+                                      {child.description}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {hasSubCategories && (
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover/sub:text-brand-600 group-hover/sub:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                                )}
+                              </a>
+
+                              {/* Dynamic Sub-Category Flyout Menu */}
+                              {hasSubCategories && (
+                                <div
+                                  className={`
+                                    absolute left-full top-0 pl-2 w-[290px]
+                                    transition-all duration-200 z-[70]
+                                    ${
+                                      isSubOpen
+                                        ? 'opacity-100 visible translate-x-0'
+                                        : 'opacity-0 invisible -translate-x-1 group-hover/sub:opacity-100 group-hover/sub:visible group-hover/sub:translate-x-0'
+                                    }
+                                  `}
                                 >
-                                  {child.description}
-                                </span>
+                                  <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden py-2">
+                                    <div className="px-3.5 py-1.5 border-b border-slate-100 mb-1 bg-slate-50/80 flex items-center justify-between">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-brand-700">
+                                        Sub-Categories &amp; Products
+                                      </span>
+                                      <span className="text-[9px] font-bold bg-brand-100 text-brand-800 px-1.5 py-0.2 rounded-full">
+                                        {child.subCategories?.length}
+                                      </span>
+                                    </div>
+                                    {child.subCategories?.map((sub: NavSubItem) => (
+                                      <a
+                                        key={sub.label}
+                                        href={sub.href}
+                                        onClick={() => {
+                                          setOpenDropdown(null)
+                                          setOpenSubDropdown(null)
+                                          setMobileOpen(false)
+                                          if (window.location.hash === sub.href) {
+                                            window.dispatchEvent(new HashChangeEvent('hashchange'))
+                                          }
+                                        }}
+                                        className="block px-3.5 py-2.5 hover:bg-brand-50/80 border-l-2 border-transparent hover:border-brand-600 transition-colors"
+                                      >
+                                        <span className="block text-xs font-bold text-slate-800 hover:text-brand-700 leading-tight">
+                                          🏷️ {sub.label}
+                                        </span>
+                                        {sub.description && (
+                                          <span className="block text-[11px] text-slate-500 mt-0.5 leading-snug">
+                                            {sub.description}
+                                          </span>
+                                        )}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
-                            </a>
+                            </div>
                           )
-                        )}
+                        })}
                       </div>
                     </div>
                   </div>
@@ -682,7 +769,7 @@ export default function Navbar() {
               py-4
             "
           >
-            {navItems.map((item) => {
+            {dynamicNavItems.map((item) => {
               const isActive = isItemActive(item)
 
               if (item.children) {
@@ -772,62 +859,95 @@ export default function Navbar() {
                       >
                         {item.children.map(
                           (child: NavChildItem) => (
-                            <a
-                              key={child.label}
-                              href={child.href}
-                              onClick={(event) => {
-                                if (child.action) {
-                                  event.preventDefault()
-                                  handleNavClick(
-                                    child.action
-                                  )
-                                  return
-                                }
-
-                                setOpenDropdown(null)
-                                setMobileOpen(false)
-
-                                if (
-                                  window.location.hash ===
-                                  child.href
-                                ) {
-                                  window.dispatchEvent(
-                                    new HashChangeEvent(
-                                      'hashchange'
+                            <div key={child.label} className="mb-1">
+                              <a
+                                href={child.href}
+                                onClick={(event) => {
+                                  if (child.action) {
+                                    event.preventDefault()
+                                    handleNavClick(
+                                      child.action
                                     )
-                                  )
-                                }
-                              }}
-                              className={`
-                                block
-                                px-3
-                                py-2.5
-                                rounded-lg
-                                text-sm
-                                ${
-                                  isChildActive(child)
-                                    ? 'text-brand-700 bg-brand-50 font-semibold'
-                                    : 'text-slate-600 hover:bg-slate-50 hover:text-brand-700'
-                                }
-                              `}
-                            >
-                              <span className="block">
-                                {child.label}
-                              </span>
+                                    return
+                                  }
 
-                              {child.description && (
-                                <span
-                                  className="
-                                    block
-                                    text-xs
-                                    text-slate-500
-                                    mt-0.5
-                                  "
-                                >
-                                  {child.description}
-                                </span>
+                                  setOpenDropdown(null)
+                                  setMobileOpen(false)
+
+                                  if (
+                                    window.location.hash ===
+                                    child.href
+                                  ) {
+                                    window.dispatchEvent(
+                                      new HashChangeEvent(
+                                        'hashchange'
+                                      )
+                                    )
+                                  }
+                                }}
+                                className={`
+                                  flex
+                                  items-center
+                                  justify-between
+                                  px-3
+                                  py-2.5
+                                  rounded-lg
+                                  text-sm
+                                  ${
+                                    isChildActive(child)
+                                      ? 'text-brand-700 bg-brand-50 font-semibold'
+                                      : 'text-slate-600 hover:bg-slate-50 hover:text-brand-700'
+                                  }
+                                `}
+                              >
+                                <div>
+                                  <span className="block font-medium">
+                                    {child.label}
+                                  </span>
+
+                                  {child.description && (
+                                    <span
+                                      className="
+                                        block
+                                        text-xs
+                                        text-slate-500
+                                        mt-0.5
+                                      "
+                                    >
+                                      {child.description}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {child.subCategories && child.subCategories.length > 0 && (
+                                  <span className="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded border border-brand-200 shrink-0 ml-2">
+                                    {child.subCategories.length}
+                                  </span>
+                                )}
+                              </a>
+
+                              {/* Mobile Sub-categories indented */}
+                              {child.subCategories && child.subCategories.length > 0 && (
+                                <div className="ml-4 pl-3 border-l-2 border-brand-200/80 my-1 space-y-1">
+                                  {child.subCategories.map((sub: NavSubItem) => (
+                                    <a
+                                      key={sub.label}
+                                      href={sub.href}
+                                      onClick={() => {
+                                        setOpenDropdown(null)
+                                        setMobileOpen(false)
+                                        if (window.location.hash === sub.href) {
+                                          window.dispatchEvent(new HashChangeEvent('hashchange'))
+                                        }
+                                      }}
+                                      className="block px-2.5 py-1 text-xs text-slate-600 hover:text-brand-700 hover:bg-brand-50 rounded-md font-medium"
+                                    >
+                                      🏷️ {sub.label}
+                                    </a>
+                                  ))}
+                                </div>
                               )}
-                            </a>
+                            </div>
                           )
                         )}
                       </div>
